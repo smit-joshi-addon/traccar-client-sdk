@@ -22,6 +22,14 @@ kotlin {
     }
 
     sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.ktor.client.core)
+        }
+        androidMain.dependencies {
+            implementation(libs.ktor.client.android)
+            implementation(libs.androidx.activity)
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
