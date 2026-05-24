@@ -1,0 +1,15 @@
+.gradle/
+build/
+.kotlin/
+local.properties
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+.DS_Store
+
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
