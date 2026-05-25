@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 rootProject.name = "traccar-client-sdk"
 
 include(":core")
+include(":samples:android")
