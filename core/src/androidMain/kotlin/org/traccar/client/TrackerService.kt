@@ -37,6 +37,7 @@ class TrackerService : Service() {
                 queue = SqlDelightQueue(
                     AndroidSqliteDriver(Database.Schema, applicationContext, "tracker.db"),
                 ),
+                network = AndroidNetworkMonitor(applicationContext),
             ).also { it.start() }
         }
         return START_REDELIVER_INTENT
