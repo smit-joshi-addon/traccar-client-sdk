@@ -6,33 +6,27 @@ import android.location.LocationListener
 import android.location.LocationManager
 import androidx.activity.ComponentActivity
 import androidx.core.content.getSystemService
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 
 class AndroidGpsProvider(
     context: Context,
     private val activity: ComponentActivity? = null,
     private val minTimeMs: Long = 1000L,
     private val minDistanceMeters: Float = 10f,
-) : PositionProvider {
+) : CallbackPositionProvider() {
 
     private val appContext = context.applicationContext
     private val locationManager: LocationManager = checkNotNull(appContext.getSystemService())
+    private var listener: LocationListener? = null
 
-    override fun positions(): Flow<Position> = callbackFlow {
+    override suspend fun start(emit: (Position) -> Unit) {
         if (!hasLocationPermission(appContext)) {
-            val activity = activity ?: run {
-                close(SecurityException("Location permission denied"))
-                return@callbackFlow
-            }
+            val activity = activity ?: throw SecurityException("Location permission denied")
             if (!requestLocationPermission(activity)) {
-                close(SecurityException("Location permission denied"))
-                return@callbackFlow
+                throw SecurityException("Location permission denied")
             }
         }
         val listener = LocationListener { location ->
-            trySend(location.toPosition())
+            emit(location.toPosition())
         }
         try {
             locationManager.requestLocationUpdates(
@@ -42,10 +36,14 @@ class AndroidGpsProvider(
                 listener,
             )
         } catch (e: SecurityException) {
-            close(e)
-            return@callbackFlow
+            throw e
         }
-        awaitClose { locationManager.removeUpdates(listener) }
+        this.listener = listener
+    }
+
+    override fun stop() {
+        listener?.let { locationManager.removeUpdates(it) }
+        listener = null
     }
 }
 

@@ -30,6 +30,9 @@ kotlin {
             implementation(libs.ktor.client.android)
             implementation(libs.androidx.activity)
         }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
