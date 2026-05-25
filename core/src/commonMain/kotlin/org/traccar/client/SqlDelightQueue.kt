@@ -15,8 +15,12 @@ class SqlDelightQueue(driver: SqlDriver) : PositionQueue {
             queries.enqueue(
                 latitude = position.latitude,
                 longitude = position.longitude,
-                accuracy = position.accuracy.toDouble(),
+                accuracy = position.accuracy,
                 time = position.time,
+                altitude = position.altitude,
+                speed = position.speed,
+                bearing = position.bearing,
+                battery = position.battery?.toLong(),
             )
         }
     }
@@ -26,8 +30,12 @@ class SqlDelightQueue(driver: SqlDriver) : PositionQueue {
             Position(
                 latitude = row.latitude,
                 longitude = row.longitude,
-                accuracy = row.accuracy.toFloat(),
+                accuracy = row.accuracy,
                 time = row.time,
+                altitude = row.altitude,
+                speed = row.speed,
+                bearing = row.bearing,
+                battery = row.battery?.toInt(),
             )
         }
     }

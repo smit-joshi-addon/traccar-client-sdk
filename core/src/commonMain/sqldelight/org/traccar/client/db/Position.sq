@@ -3,15 +3,19 @@ CREATE TABLE Position (
     latitude REAL NOT NULL,
     longitude REAL NOT NULL,
     accuracy REAL NOT NULL,
-    time INTEGER NOT NULL
+    time INTEGER NOT NULL,
+    altitude REAL,
+    speed REAL,
+    bearing REAL,
+    battery INTEGER
 );
 
 enqueue:
-INSERT INTO Position(latitude, longitude, accuracy, time)
-VALUES (?, ?, ?, ?);
+INSERT INTO Position(latitude, longitude, accuracy, time, altitude, speed, bearing, battery)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 peek:
-SELECT latitude, longitude, accuracy, time
+SELECT latitude, longitude, accuracy, time, altitude, speed, bearing, battery
 FROM Position
 ORDER BY id ASC
 LIMIT 1;
