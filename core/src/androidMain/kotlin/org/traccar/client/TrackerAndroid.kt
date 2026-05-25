@@ -5,12 +5,12 @@ import androidx.activity.ComponentActivity
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 
-fun Tracker(config: Config, activity: ComponentActivity): Tracker = Tracker(
+fun createTracker(config: Config, activity: ComponentActivity): Tracker = Tracker(
     provider = AndroidGpsProvider(activity, activity),
     uploader = HttpUploader(config, HttpClient(Android)),
 )
 
-fun Tracker(config: Config, context: Context): Tracker = Tracker(
+fun createTracker(config: Config, context: Context): Tracker = Tracker(
     provider = AndroidGpsProvider(context),
     uploader = HttpUploader(config, HttpClient(Android)),
 )

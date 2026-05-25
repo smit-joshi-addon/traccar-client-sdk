@@ -20,10 +20,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Job
 import org.traccar.client.Config
 import org.traccar.client.Tracker
+import org.traccar.client.createTracker
 
 class MainActivity : ComponentActivity() {
 
@@ -42,7 +41,7 @@ private fun TrackerScreen() {
     val activity = LocalActivity.current as ComponentActivity
     var serverUrl by remember { mutableStateOf("https://demo.traccar.org/") }
     var deviceId by remember { mutableStateOf("123456") }
-    var job: Job? by remember { mutableStateOf(null) }
+    var tracker: Tracker? by remember { mutableStateOf(null) }
 
     Scaffold { paddingValues ->
         Column(
@@ -66,18 +65,19 @@ private fun TrackerScreen() {
             )
             Button(
                 onClick = {
-                    val current = job
-                    if (current?.isActive == true) {
-                        current.cancel()
-                        job = null
+                    val current = tracker
+                    if (current != null) {
+                        current.stop()
+                        tracker = null
                     } else {
-                        val tracker = Tracker(Config(serverUrl, deviceId), activity)
-                        job = tracker.start(activity.lifecycleScope)
+                        val newTracker = createTracker(Config(serverUrl, deviceId), activity)
+                        newTracker.start()
+                        tracker = newTracker
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (job?.isActive == true) "Stop" else "Start")
+                Text(if (tracker != null) "Stop" else "Start")
             }
         }
     }

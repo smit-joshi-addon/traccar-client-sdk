@@ -1,7 +1,9 @@
 package org.traccar.client
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -12,11 +14,23 @@ class Tracker(
     private val filter: PositionFilter = NoOpFilter,
     private val queue: PositionQueue = InMemoryQueue(),
 ) {
-    fun start(scope: CoroutineScope): Job = scope.launch {
-        provider.positions()
-            .filter { filter.accept(it) }
-            .onEach { queue.enqueue(it) }
-            .collect { sync() }
+    private var scope: CoroutineScope? = null
+
+    fun start() {
+        if (scope != null) return
+        val newScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        scope = newScope
+        newScope.launch {
+            provider.positions()
+                .filter { filter.accept(it) }
+                .onEach { queue.enqueue(it) }
+                .collect { sync() }
+        }
+    }
+
+    fun stop() {
+        scope?.cancel()
+        scope = null
     }
 
     private suspend fun sync() {
