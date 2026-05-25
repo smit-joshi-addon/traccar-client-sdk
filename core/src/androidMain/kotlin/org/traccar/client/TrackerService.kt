@@ -12,6 +12,8 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import kotlinx.serialization.json.Json
@@ -31,8 +33,13 @@ class TrackerService : Service() {
         val config = Json.decodeFromString<Config>(configJson)
 
         if (engine == null) {
+            val provider = if (isGooglePlayServicesAvailable(applicationContext)) {
+                FusedLocationProvider(applicationContext, config.location)
+            } else {
+                AndroidLocationProvider(applicationContext, config.location)
+            }
             engine = TrackerEngine(
-                provider = AndroidLocationProvider(applicationContext, config.location),
+                provider = provider,
                 uploader = HttpUploader(config, HttpClient(Android)),
                 queue = SqlDelightQueue(
                     AndroidSqliteDriver(Database.Schema, applicationContext, "tracker.db"),
@@ -97,3 +104,6 @@ class TrackerService : Service() {
         }
     }
 }
+
+private fun isGooglePlayServicesAvailable(context: Context): Boolean =
+    GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS

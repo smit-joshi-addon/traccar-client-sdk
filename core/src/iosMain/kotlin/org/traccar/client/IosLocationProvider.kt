@@ -23,7 +23,7 @@ import platform.UIKit.UIDevice
 import platform.darwin.NSObject
 
 class IosLocationProvider(
-    private val config: LocationConfig = LocationConfig(),
+    private val config: LocationConfig,
 ) : CallbackPositionProvider() {
 
     private var locationManager: CLLocationManager? = null

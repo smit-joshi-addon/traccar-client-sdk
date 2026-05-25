@@ -7,6 +7,7 @@ sqldelight = "2.3.2"
 serialization = "1.11.0"
 androidx-activity = "1.12.4"
 androidx-activity-compose = "1.12.4"
+play-services-location = "21.3.0"
 compose-bom = "2026.05.00"
 android-minSdk = "24"
 android-compileSdk = "37"
@@ -22,6 +23,7 @@ sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", versi
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 androidx-activity = { module = "androidx.activity:activity", version.ref = "androidx-activity" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity-compose" }
+play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "play-services-location" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
 
