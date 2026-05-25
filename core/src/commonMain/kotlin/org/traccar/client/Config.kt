@@ -14,6 +14,7 @@ data class LocationConfig(
     val accuracy: Accuracy = Accuracy.MEDIUM,
     val distanceMeters: Int = 75,
     val intervalSeconds: Int = 300,
+    val angleDegrees: Int = 0,
     val stopDetection: Boolean = true,
     val stopTimeoutSeconds: Int = 60,
     val stationaryRadiusMeters: Int = 100,

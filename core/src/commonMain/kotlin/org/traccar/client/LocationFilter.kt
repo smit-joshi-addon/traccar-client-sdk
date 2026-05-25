@@ -1,6 +1,7 @@
 package org.traccar.client
 
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.pow
@@ -19,9 +20,12 @@ class LocationFilter(
             lastAccepted = position
             return true
         }
-        val timeOk = (position.time - previous.time) >= config.intervalSeconds * 1000L
-        val distanceOk = distance(previous, position) >= config.distanceMeters
-        if (timeOk && distanceOk) {
+        val timeTrigger = (position.time - previous.time) >= config.intervalSeconds * 1000L
+        val distanceTrigger = distance(previous, position) >= config.distanceMeters
+        val angleTrigger = config.angleDegrees > 0 &&
+            previous.bearing != null && position.bearing != null &&
+            bearingChange(previous.bearing, position.bearing) >= config.angleDegrees
+        if (timeTrigger || distanceTrigger || angleTrigger) {
             lastAccepted = position
             return true
         }
@@ -35,6 +39,11 @@ class LocationFilter(
         val dLon = (b.longitude - a.longitude) * PI / 180
         val h = sin(dLat / 2).pow(2) + cos(lat1) * cos(lat2) * sin(dLon / 2).pow(2)
         return 2 * EARTH_RADIUS_METERS * asin(sqrt(h))
+    }
+
+    private fun bearingChange(a: Double, b: Double): Double {
+        val diff = abs(a - b)
+        return if (diff > 180) 360 - diff else diff
     }
 
     private companion object {
