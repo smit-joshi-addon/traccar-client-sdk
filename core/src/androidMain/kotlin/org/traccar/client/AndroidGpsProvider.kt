@@ -4,6 +4,7 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Looper
 import androidx.core.content.getSystemService
 
 class AndroidGpsProvider(
@@ -26,6 +27,7 @@ class AndroidGpsProvider(
                 minTimeMs,
                 minDistanceMeters,
                 listener,
+                Looper.getMainLooper(),
             )
         } catch (e: SecurityException) {
             throw e

@@ -25,3 +25,20 @@ suspend fun requestPermission(activity: ComponentActivity, permission: String): 
         continuation.invokeOnCancellation { launcher.unregister() }
         launcher.launch(permission)
     }
+
+suspend fun requestPermissions(
+    activity: ComponentActivity,
+    permissions: List<String>,
+): Map<String, Boolean> = suspendCancellableCoroutine { continuation ->
+    val key = "traccar_permissions_${System.nanoTime()}"
+    lateinit var launcher: ActivityResultLauncher<Array<String>>
+    launcher = activity.activityResultRegistry.register(
+        key,
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        launcher.unregister()
+        continuation.resume(result)
+    }
+    continuation.invokeOnCancellation { launcher.unregister() }
+    launcher.launch(permissions.toTypedArray())
+}

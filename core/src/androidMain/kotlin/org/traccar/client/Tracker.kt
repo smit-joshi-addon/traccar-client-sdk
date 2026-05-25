@@ -1,36 +1,45 @@
 package org.traccar.client
 
 import android.Manifest
+import android.os.Build
 import androidx.activity.ComponentActivity
-import app.cash.sqldelight.driver.android.AndroidSqliteDriver
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.android.Android
-import org.traccar.client.db.Database
 
 class Tracker internal constructor(
     private val activity: ComponentActivity,
-    private val engine: TrackerEngine,
+    private val config: Config,
 ) {
+    init {
+        TrackerService.ensureNotificationChannel(activity)
+    }
+
     suspend fun start(): Boolean {
-        if (!hasPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) &&
-            !requestPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION)
+        val foreground = buildList {
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        val missing = foreground.filterNot { hasPermission(activity, it) }
+        if (missing.isNotEmpty()) {
+            val results = requestPermissions(activity, missing)
+            if (results.values.any { !it }) return false
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            !hasPermission(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) &&
+            !requestPermission(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         ) {
             return false
         }
-        engine.start()
+
+        TrackerService.start(activity, config)
         return true
     }
 
     fun stop() {
-        engine.stop()
+        TrackerService.stop(activity)
     }
 }
 
-fun createTracker(activity: ComponentActivity, config: Config): Tracker = Tracker(
-    activity = activity,
-    engine = TrackerEngine(
-        provider = AndroidGpsProvider(activity),
-        uploader = HttpUploader(config, HttpClient(Android)),
-        queue = SqlDelightQueue(AndroidSqliteDriver(Database.Schema, activity, "tracker.db")),
-    ),
-)
+fun createTracker(activity: ComponentActivity, config: Config): Tracker =
+    Tracker(activity, config)
