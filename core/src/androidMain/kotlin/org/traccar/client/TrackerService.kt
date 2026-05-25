@@ -32,7 +32,7 @@ class TrackerService : Service() {
 
         if (engine == null) {
             engine = TrackerEngine(
-                provider = AndroidGpsProvider(applicationContext),
+                provider = AndroidLocationProvider(applicationContext, config.location),
                 uploader = HttpUploader(config, HttpClient(Android)),
                 queue = SqlDelightQueue(
                     AndroidSqliteDriver(Database.Schema, applicationContext, "tracker.db"),

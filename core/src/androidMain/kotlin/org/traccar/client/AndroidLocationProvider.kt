@@ -8,10 +8,9 @@ import android.os.BatteryManager
 import android.os.Looper
 import androidx.core.content.getSystemService
 
-class AndroidGpsProvider(
+class AndroidLocationProvider(
     context: Context,
-    private val minTimeMs: Long = 1000L,
-    private val minDistanceMeters: Float = 10f,
+    private val config: LocationConfig = LocationConfig(),
 ) : CallbackPositionProvider() {
 
     private val appContext = context.applicationContext
@@ -25,9 +24,9 @@ class AndroidGpsProvider(
         }
         try {
             locationManager.requestLocationUpdates(
-                LocationManager.GPS_PROVIDER,
-                minTimeMs,
-                minDistanceMeters,
+                config.accuracy.toAndroidProvider(),
+                config.intervalSeconds * 1000L,
+                config.distanceMeters.toFloat(),
                 listener,
                 Looper.getMainLooper(),
             )
@@ -46,6 +45,12 @@ class AndroidGpsProvider(
         val level = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: return null
         return if (level in 0..100) level else null
     }
+}
+
+private fun Accuracy.toAndroidProvider(): String = when (this) {
+    Accuracy.HIGHEST, Accuracy.HIGH -> LocationManager.GPS_PROVIDER
+    Accuracy.MEDIUM -> LocationManager.NETWORK_PROVIDER
+    Accuracy.LOW -> LocationManager.PASSIVE_PROVIDER
 }
 
 private fun Location.toPosition(battery: Int?) = Position(

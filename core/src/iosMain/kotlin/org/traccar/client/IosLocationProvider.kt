@@ -13,6 +13,9 @@ import platform.CoreLocation.kCLAuthorizationStatusAuthorizedWhenInUse
 import platform.CoreLocation.kCLAuthorizationStatusDenied
 import platform.CoreLocation.kCLAuthorizationStatusRestricted
 import platform.CoreLocation.kCLLocationAccuracyBest
+import platform.CoreLocation.kCLLocationAccuracyBestForNavigation
+import platform.CoreLocation.kCLLocationAccuracyHundredMeters
+import platform.CoreLocation.kCLLocationAccuracyKilometer
 import platform.Foundation.NSDate
 import platform.Foundation.NSError
 import platform.Foundation.timeIntervalSince1970
@@ -20,7 +23,7 @@ import platform.UIKit.UIDevice
 import platform.darwin.NSObject
 
 class IosLocationProvider(
-    private val distanceFilterMeters: Double = 10.0,
+    private val config: LocationConfig = LocationConfig(),
 ) : CallbackPositionProvider() {
 
     private var locationManager: CLLocationManager? = null
@@ -56,8 +59,8 @@ class IosLocationProvider(
 
         val manager = CLLocationManager().apply {
             this.delegate = delegate
-            desiredAccuracy = kCLLocationAccuracyBest
-            distanceFilter = distanceFilterMeters
+            desiredAccuracy = config.accuracy.toIosAccuracy()
+            distanceFilter = config.distanceMeters.toDouble()
             allowsBackgroundLocationUpdates = true
         }
 
@@ -90,6 +93,13 @@ class IosLocationProvider(
         val level = UIDevice.currentDevice.batteryLevel
         return if (level >= 0f) (level * 100).toInt() else null
     }
+}
+
+private fun Accuracy.toIosAccuracy(): Double = when (this) {
+    Accuracy.HIGHEST -> kCLLocationAccuracyBestForNavigation
+    Accuracy.HIGH -> kCLLocationAccuracyBest
+    Accuracy.MEDIUM -> kCLLocationAccuracyHundredMeters
+    Accuracy.LOW -> kCLLocationAccuracyKilometer
 }
 
 @OptIn(ExperimentalForeignApi::class)
