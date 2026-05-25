@@ -16,6 +16,7 @@ targets:
       properties:
         NSLocationWhenInUseUsageDescription: Required for location tracking.
         NSLocationAlwaysAndWhenInUseUsageDescription: Required for background location tracking.
+        NSMotionUsageDescription: Required for stop detection.
         UIBackgroundModes:
           - location
         UILaunchScreen: {}

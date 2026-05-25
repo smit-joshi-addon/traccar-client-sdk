@@ -18,6 +18,9 @@ class Tracker internal constructor(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && config.location.stopDetection) {
+                add(Manifest.permission.ACTIVITY_RECOGNITION)
+            }
         }
         val missing = foreground.filterNot { hasPermission(activity, it) }
         if (missing.isNotEmpty()) {
