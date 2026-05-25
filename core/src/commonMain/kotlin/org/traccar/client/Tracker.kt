@@ -11,8 +11,8 @@ import kotlinx.coroutines.launch
 class Tracker(
     private val provider: PositionProvider,
     private val uploader: Uploader,
+    private val queue: PositionQueue,
     private val filter: PositionFilter = NoOpFilter,
-    private val queue: PositionQueue = InMemoryQueue(),
 ) {
     private var scope: CoroutineScope? = null
 
@@ -37,7 +37,7 @@ class Tracker(
         while (true) {
             val pending = queue.peek() ?: return
             if (!uploader.upload(pending)) return
-            queue.remove(pending)
+            queue.removeFirst()
         }
     }
 }
