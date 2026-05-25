@@ -53,6 +53,7 @@ class IosLocationProvider(
             this.delegate = delegate
             desiredAccuracy = kCLLocationAccuracyBest
             distanceFilter = distanceFilterMeters
+            allowsBackgroundLocationUpdates = true
         }
 
         val authorized = when (manager.authorizationStatus) {
@@ -61,7 +62,7 @@ class IosLocationProvider(
             kCLAuthorizationStatusDenied,
             kCLAuthorizationStatusRestricted -> false
             else -> {
-                manager.requestWhenInUseAuthorization()
+                manager.requestAlwaysAuthorization()
                 authStatus.await()
             }
         }
