@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.google.android.gms.common.ConnectionResult
@@ -21,6 +22,7 @@ class TrackerService : Service() {
     private lateinit var configStore: ConfigStore
     private lateinit var queue: DatabaseQueue
     private var engine: TrackerEngine? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -39,6 +41,11 @@ class TrackerService : Service() {
         }
 
         if (engine == null) {
+            if (config.wakeLock) {
+                wakeLock = getSystemService<PowerManager>()
+                    ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "traccar:tracker")
+                    ?.also { it.acquire() }
+            }
             val provider = if (isGooglePlayServicesAvailable(applicationContext)) {
                 FusedLocationProvider(applicationContext, config.location)
             } else {
@@ -58,6 +65,8 @@ class TrackerService : Service() {
     override fun onDestroy() {
         engine?.stop()
         engine = null
+        wakeLock?.release()
+        wakeLock = null
         super.onDestroy()
     }
 

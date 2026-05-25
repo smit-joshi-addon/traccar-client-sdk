@@ -7,6 +7,7 @@ data class Config(
     val serverUrl: String,
     val deviceId: String,
     val location: LocationConfig = LocationConfig(),
+    val wakeLock: Boolean = false,
 )
 
 @Serializable
