@@ -4,12 +4,10 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import androidx.activity.ComponentActivity
 import androidx.core.content.getSystemService
 
 class AndroidGpsProvider(
     context: Context,
-    private val activity: ComponentActivity? = null,
     private val minTimeMs: Long = 1000L,
     private val minDistanceMeters: Float = 10f,
 ) : CallbackPositionProvider() {
@@ -19,12 +17,6 @@ class AndroidGpsProvider(
     private var listener: LocationListener? = null
 
     override suspend fun start(emit: (Position) -> Unit) {
-        if (!hasLocationPermission(appContext)) {
-            val activity = activity ?: throw SecurityException("Location permission denied")
-            if (!requestLocationPermission(activity)) {
-                throw SecurityException("Location permission denied")
-            }
-        }
         val listener = LocationListener { location ->
             emit(location.toPosition())
         }

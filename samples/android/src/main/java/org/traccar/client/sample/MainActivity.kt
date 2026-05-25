@@ -17,9 +17,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import org.traccar.client.Config
 import org.traccar.client.Tracker
 import org.traccar.client.createTracker
@@ -39,6 +41,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun TrackerScreen() {
     val activity = LocalActivity.current as ComponentActivity
+    val scope = rememberCoroutineScope()
     var serverUrl by remember { mutableStateOf("https://demo.traccar.org/") }
     var deviceId by remember { mutableStateOf("123456") }
     var tracker: Tracker? by remember { mutableStateOf(null) }
@@ -70,9 +73,12 @@ private fun TrackerScreen() {
                         current.stop()
                         tracker = null
                     } else {
-                        val newTracker = createTracker(Config(serverUrl, deviceId), activity)
-                        newTracker.start()
-                        tracker = newTracker
+                        scope.launch {
+                            val newTracker = createTracker(activity, Config(serverUrl, deviceId))
+                            if (newTracker.start()) {
+                                tracker = newTracker
+                            }
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

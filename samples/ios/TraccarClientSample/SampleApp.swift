@@ -30,7 +30,7 @@ struct ContentView: View {
                         current.stop()
                         tracker = nil
                     } else {
-                        let newTracker = TrackerIosKt.createTracker(
+                        let newTracker = TrackerKt.createTracker(
                             config: Config(serverUrl: serverUrl, deviceId: deviceId)
                         )
                         newTracker.start()

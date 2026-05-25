@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
-class Tracker(
+class TrackerEngine(
     private val provider: PositionProvider,
     private val uploader: Uploader,
     private val queue: PositionQueue,
