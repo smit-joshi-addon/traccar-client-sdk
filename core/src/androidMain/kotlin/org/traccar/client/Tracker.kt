@@ -8,6 +8,8 @@ class Tracker internal constructor(
     private val activity: ComponentActivity,
     private val config: Config,
 ) {
+    private val configStore = ConfigStore(sharedDriver(activity))
+
     init {
         TrackerService.ensureNotificationChannel(activity)
     }
@@ -35,11 +37,13 @@ class Tracker internal constructor(
             return false
         }
 
-        TrackerService.start(activity, config)
+        configStore.save(config)
+        TrackerService.start(activity)
         return true
     }
 
     fun stop() {
+        configStore.clear()
         TrackerService.stop(activity)
     }
 }

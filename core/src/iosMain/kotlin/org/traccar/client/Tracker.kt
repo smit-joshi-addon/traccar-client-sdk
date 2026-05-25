@@ -1,22 +1,31 @@
 package org.traccar.client
 
-import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.darwin.Darwin
-import org.traccar.client.db.Database
 
 class Tracker internal constructor(
+    private val config: Config,
     private val engine: TrackerEngine,
 ) {
-    fun start() = engine.start()
-    fun stop() = engine.stop()
+    private val configStore = ConfigStore(sharedDriver)
+
+    fun start() {
+        configStore.save(config)
+        engine.start()
+    }
+
+    fun stop() {
+        engine.stop()
+        configStore.clear()
+    }
 }
 
 fun createTracker(config: Config): Tracker = Tracker(
-    TrackerEngine(
+    config = config,
+    engine = TrackerEngine(
         provider = IosLocationProvider(config.location),
         uploader = HttpUploader(config, HttpClient(Darwin)),
-        queue = DatabaseQueue(NativeSqliteDriver(Database.Schema, "tracker.db")),
+        queue = DatabaseQueue(sharedDriver),
         network = IosNetworkMonitor(),
         filter = LocationFilter(config.location),
     ),

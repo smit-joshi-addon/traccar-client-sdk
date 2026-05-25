@@ -11,26 +11,32 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
-import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
-import kotlinx.serialization.json.Json
-import org.traccar.client.db.Database
 
 class TrackerService : Service() {
 
+    private lateinit var configStore: ConfigStore
+    private lateinit var queue: DatabaseQueue
     private var engine: TrackerEngine? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        val driver = sharedDriver(applicationContext)
+        configStore = ConfigStore(driver)
+        queue = DatabaseQueue(driver)
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startInForeground()
 
-        val configJson = intent?.getStringExtra(EXTRA_CONFIG) ?: run {
+        val config = configStore.load()
+        if (config == null) {
             stopSelf()
             return START_NOT_STICKY
         }
-        val config = Json.decodeFromString<Config>(configJson)
 
         if (engine == null) {
             val provider = if (isGooglePlayServicesAvailable(applicationContext)) {
@@ -41,9 +47,7 @@ class TrackerService : Service() {
             engine = TrackerEngine(
                 provider = provider,
                 uploader = HttpUploader(config, HttpClient(Android)),
-                queue = DatabaseQueue(
-                    AndroidSqliteDriver(Database.Schema, applicationContext, "tracker.db"),
-                ),
+                queue = queue,
                 network = AndroidNetworkMonitor(applicationContext),
                 filter = LocationFilter(config.location),
             ).also { it.start() }
@@ -78,7 +82,6 @@ class TrackerService : Service() {
     companion object {
         private const val CHANNEL_ID = "tracker"
         private const val NOTIFICATION_ID = 0x7AC0
-        private const val EXTRA_CONFIG = "config"
 
         internal fun ensureNotificationChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -89,10 +92,8 @@ class TrackerService : Service() {
             )
         }
 
-        internal fun start(context: Context, config: Config) {
-            val intent = Intent(context, TrackerService::class.java).apply {
-                putExtra(EXTRA_CONFIG, Json.encodeToString(config))
-            }
+        internal fun start(context: Context) {
+            val intent = Intent(context, TrackerService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
