@@ -41,7 +41,7 @@ class TrackerService : Service() {
             engine = TrackerEngine(
                 provider = provider,
                 uploader = HttpUploader(config, HttpClient(Android)),
-                queue = SqlDelightQueue(
+                queue = DatabaseQueue(
                     AndroidSqliteDriver(Database.Schema, applicationContext, "tracker.db"),
                 ),
                 network = AndroidNetworkMonitor(applicationContext),

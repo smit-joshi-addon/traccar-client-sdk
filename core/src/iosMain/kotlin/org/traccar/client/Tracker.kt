@@ -16,7 +16,7 @@ fun createTracker(config: Config): Tracker = Tracker(
     TrackerEngine(
         provider = IosLocationProvider(config.location),
         uploader = HttpUploader(config, HttpClient(Darwin)),
-        queue = SqlDelightQueue(NativeSqliteDriver(Database.Schema, "tracker.db")),
+        queue = DatabaseQueue(NativeSqliteDriver(Database.Schema, "tracker.db")),
         network = IosNetworkMonitor(),
         filter = LocationFilter(config.location),
     ),

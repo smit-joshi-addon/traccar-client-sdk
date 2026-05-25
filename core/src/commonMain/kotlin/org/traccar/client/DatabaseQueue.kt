@@ -5,7 +5,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.traccar.client.db.Database
 
-class SqlDelightQueue(driver: SqlDriver) : PositionQueue {
+class DatabaseQueue(driver: SqlDriver) : PositionQueue {
 
     private val queries = Database(driver).positionQueries
     private val mutex = Mutex()
