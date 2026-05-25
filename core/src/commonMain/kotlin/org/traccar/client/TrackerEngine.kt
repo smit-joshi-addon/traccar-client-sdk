@@ -17,7 +17,7 @@ class TrackerEngine(
     private val uploader: Uploader,
     private val queue: PositionQueue,
     private val network: NetworkMonitor,
-    private val filter: PositionFilter = NoOpFilter,
+    private val filter: PositionFilter,
     private val initialBackoffMs: Long = 5_000,
     private val maxBackoffMs: Long = 5 * 60_000,
 ) {

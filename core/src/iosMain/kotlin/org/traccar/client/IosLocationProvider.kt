@@ -21,6 +21,7 @@ import platform.CoreLocation.kCLAuthorizationStatusAuthorizedAlways
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedWhenInUse
 import platform.CoreLocation.kCLAuthorizationStatusDenied
 import platform.CoreLocation.kCLAuthorizationStatusRestricted
+import platform.CoreLocation.kCLDistanceFilterNone
 import platform.CoreLocation.kCLLocationAccuracyBest
 import platform.CoreLocation.kCLLocationAccuracyBestForNavigation
 import platform.CoreLocation.kCLLocationAccuracyHundredMeters
@@ -34,8 +35,10 @@ import platform.UIKit.UIDevice
 import platform.darwin.NSObject
 
 class IosLocationProvider(
-    private val config: LocationConfig,
+    config: LocationConfig,
 ) : CallbackPositionProvider() {
+
+    private val config: LocationConfig = config.effective
 
     private var locationManager: CLLocationManager? = null
     private var activityManager: CMMotionActivityManager? = null
@@ -86,7 +89,11 @@ class IosLocationProvider(
         val manager = CLLocationManager().apply {
             this.delegate = delegate
             desiredAccuracy = config.accuracy.toIosAccuracy()
-            distanceFilter = config.distanceMeters.toDouble()
+            distanceFilter = if (config.distanceMeters == 0) {
+                kCLDistanceFilterNone
+            } else {
+                config.distanceMeters.toDouble()
+            }
             allowsBackgroundLocationUpdates = true
         }
 

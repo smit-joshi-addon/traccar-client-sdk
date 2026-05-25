@@ -45,6 +45,7 @@ class TrackerService : Service() {
                     AndroidSqliteDriver(Database.Schema, applicationContext, "tracker.db"),
                 ),
                 network = AndroidNetworkMonitor(applicationContext),
+                filter = LocationFilter(config.location),
             ).also { it.start() }
         }
         return START_REDELIVER_INTENT

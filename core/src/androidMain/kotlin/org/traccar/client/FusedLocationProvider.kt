@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 class FusedLocationProvider(
     context: Context,
     config: LocationConfig,
-) : BaseLocationProvider(context, config) {
+) : BaseLocationProvider(context, config.effective) {
 
     private val locationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(appContext)

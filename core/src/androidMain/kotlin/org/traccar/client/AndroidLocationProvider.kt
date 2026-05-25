@@ -9,7 +9,7 @@ import androidx.core.content.getSystemService
 class AndroidLocationProvider(
     context: Context,
     config: LocationConfig,
-) : BaseLocationProvider(context, config) {
+) : BaseLocationProvider(context, config.effective) {
 
     private val locationManager: LocationManager = checkNotNull(appContext.getSystemService())
     private var listener: LocationListener? = null
