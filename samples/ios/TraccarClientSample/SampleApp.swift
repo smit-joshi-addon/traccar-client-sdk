@@ -13,7 +13,7 @@ struct SampleApp: App {
 struct ContentView: View {
     @State private var serverUrl = "https://demo.traccar.org/"
     @State private var deviceId = "123456"
-    @State private var tracker: Tracker?
+    @State private var isTracking = false
 
     var body: some View {
         Form {
@@ -25,16 +25,15 @@ struct ContentView: View {
                     .textInputAutocapitalization(.never)
             }
             Section {
-                Button(tracker == nil ? "Start" : "Stop") {
-                    if let current = tracker {
-                        current.stop()
-                        tracker = nil
+                Button(isTracking ? "Stop" : "Start") {
+                    if isTracking {
+                        Tracker.shared.stop()
+                        isTracking = false
                     } else {
-                        let newTracker = TrackerKt.createTracker(
+                        Tracker.shared.start(
                             config: Config(serverUrl: serverUrl, deviceId: deviceId)
                         )
-                        newTracker.start()
-                        tracker = newTracker
+                        isTracking = true
                     }
                 }
             }

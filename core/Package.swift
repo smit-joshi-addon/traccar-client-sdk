@@ -7,12 +7,18 @@ let package = Package(
         .iOS(.v15),
     ],
     products: [
-        .library(name: "TraccarClientSDK", targets: ["TraccarClientSDK"]),
+        .library(name: "TraccarClientSDK", targets: ["TraccarClientSDK", "TraccarClientAutoInit"]),
     ],
     targets: [
         .binaryTarget(
             name: "TraccarClientSDK",
             path: "build/XCFrameworks/release/TraccarClientSDK.xcframework"
+        ),
+        .target(
+            name: "TraccarClientAutoInit",
+            dependencies: ["TraccarClientSDK"],
+            path: "Sources/TraccarClientAutoInit",
+            publicHeadersPath: "include"
         ),
     ]
 )

@@ -1,6 +1,7 @@
 package org.traccar.client
 
 import android.Manifest
+import android.content.Context
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -8,17 +9,13 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
-class Tracker internal constructor(
-    private val activity: ComponentActivity,
-    private val config: Config,
-) {
-    private val configStore = ConfigStore(sharedDriver(activity))
+object Tracker {
 
-    init {
+    private const val LIVENESS_WORK_NAME = "tracker-liveness"
+
+    suspend fun start(activity: ComponentActivity, config: Config): Boolean {
         TrackerService.ensureNotificationChannel(activity)
-    }
 
-    suspend fun start(): Boolean {
         val foreground = buildList {
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -41,7 +38,7 @@ class Tracker internal constructor(
             return false
         }
 
-        configStore.save(config)
+        ConfigStore(sharedDriver(activity)).save(config)
         WorkManager.getInstance(activity).enqueueUniquePeriodicWork(
             LIVENESS_WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
@@ -51,16 +48,9 @@ class Tracker internal constructor(
         return true
     }
 
-    fun stop() {
-        WorkManager.getInstance(activity).cancelUniqueWork(LIVENESS_WORK_NAME)
-        configStore.clear()
-        TrackerService.stop(activity)
-    }
-
-    private companion object {
-        const val LIVENESS_WORK_NAME = "tracker-liveness"
+    fun stop(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork(LIVENESS_WORK_NAME)
+        ConfigStore(sharedDriver(context)).clear()
+        TrackerService.stop(context)
     }
 }
-
-fun createTracker(activity: ComponentActivity, config: Config): Tracker =
-    Tracker(activity, config)

@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.traccar.client.Config
 import org.traccar.client.Tracker
-import org.traccar.client.createTracker
 
 class MainActivity : ComponentActivity() {
 
@@ -46,7 +45,7 @@ private fun TrackerScreen() {
     val scope = rememberCoroutineScope()
     var serverUrl by remember { mutableStateOf("https://demo.traccar.org/") }
     var deviceId by remember { mutableStateOf("123456") }
-    var tracker: Tracker? by remember { mutableStateOf(null) }
+    var isTracking by remember { mutableStateOf(false) }
 
     Scaffold { paddingValues ->
         Column(
@@ -70,22 +69,20 @@ private fun TrackerScreen() {
             )
             Button(
                 onClick = {
-                    val current = tracker
-                    if (current != null) {
-                        current.stop()
-                        tracker = null
+                    if (isTracking) {
+                        Tracker.stop(activity)
+                        isTracking = false
                     } else {
                         scope.launch {
-                            val newTracker = createTracker(activity, Config(serverUrl, deviceId))
-                            if (newTracker.start()) {
-                                tracker = newTracker
+                            if (Tracker.start(activity, Config(serverUrl, deviceId))) {
+                                isTracking = true
                             }
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (tracker != null) "Stop" else "Start")
+                Text(if (isTracking) "Stop" else "Start")
             }
         }
     }

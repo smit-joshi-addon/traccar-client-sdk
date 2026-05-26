@@ -113,6 +113,7 @@ class IosLocationProvider(
         }
 
         manager.startUpdatingLocation()
+        manager.startMonitoringSignificantLocationChanges()
         locationManager = manager
 
         if (config.stopDetection) {
@@ -127,6 +128,7 @@ class IosLocationProvider(
         activityManager = null
         val manager = locationManager
         manager?.stopUpdatingLocation()
+        manager?.stopMonitoringSignificantLocationChanges()
         manager?.monitoredRegions?.forEach { region ->
             (region as? CLRegion)?.let { manager.stopMonitoringForRegion(it) }
         }
