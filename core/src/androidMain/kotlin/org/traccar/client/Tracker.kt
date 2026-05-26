@@ -2,8 +2,12 @@ package org.traccar.client
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.core.content.getSystemService
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -12,6 +16,8 @@ import java.util.concurrent.TimeUnit
 object Tracker {
 
     private const val LIVENESS_WORK_NAME = "tracker-liveness"
+    private const val PREFERENCES_NAME = "traccar-client-sdk"
+    private const val BATTERY_PROMPTED_KEY = "battery-prompted"
 
     suspend fun start(activity: ComponentActivity, config: Config): Boolean {
         TrackerService.ensureNotificationChannel(activity)
@@ -36,6 +42,15 @@ object Tracker {
             !requestPermission(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         ) {
             return false
+        }
+
+        val powerManager = activity.getSystemService<PowerManager>()
+        if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(activity.packageName)) {
+            val preferences = activity.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+            if (!preferences.getBoolean(BATTERY_PROMPTED_KEY, false)) {
+                activity.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                preferences.edit().putBoolean(BATTERY_PROMPTED_KEY, true).apply()
+            }
         }
 
         ConfigStore(sharedDriver(activity)).save(config)
