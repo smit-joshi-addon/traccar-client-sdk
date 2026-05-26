@@ -3,6 +3,10 @@ package org.traccar.client
 import android.Manifest
 import android.os.Build
 import androidx.activity.ComponentActivity
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 
 class Tracker internal constructor(
     private val activity: ComponentActivity,
@@ -38,13 +42,23 @@ class Tracker internal constructor(
         }
 
         configStore.save(config)
+        WorkManager.getInstance(activity).enqueueUniquePeriodicWork(
+            LIVENESS_WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<TrackerLivenessWorker>(15, TimeUnit.MINUTES).build(),
+        )
         TrackerService.start(activity)
         return true
     }
 
     fun stop() {
+        WorkManager.getInstance(activity).cancelUniqueWork(LIVENESS_WORK_NAME)
         configStore.clear()
         TrackerService.stop(activity)
+    }
+
+    private companion object {
+        const val LIVENESS_WORK_NAME = "tracker-liveness"
     }
 }
 

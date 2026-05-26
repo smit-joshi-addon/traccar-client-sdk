@@ -1,5 +1,6 @@
 package org.traccar.client
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -26,11 +27,13 @@ class TrackerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
         val driver = sharedDriver(applicationContext)
         configStore = ConfigStore(driver)
         queue = DatabaseQueue(driver)
     }
 
+    @SuppressLint("WakelockTimeout")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startInForeground()
 
@@ -67,6 +70,7 @@ class TrackerService : Service() {
         engine = null
         wakeLock?.release()
         wakeLock = null
+        isRunning = false
         super.onDestroy()
     }
 
@@ -91,6 +95,10 @@ class TrackerService : Service() {
     companion object {
         private const val CHANNEL_ID = "tracker"
         private const val NOTIFICATION_ID = 0x7AC0
+
+        @Volatile
+        internal var isRunning = false
+            private set
 
         internal fun ensureNotificationChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
