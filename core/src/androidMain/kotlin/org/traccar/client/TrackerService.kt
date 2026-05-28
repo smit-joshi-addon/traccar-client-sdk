@@ -28,9 +28,8 @@ class TrackerService : Service() {
     override fun onCreate() {
         super.onCreate()
         isRunning = true
-        val driver = sharedDriver(applicationContext)
-        configStore = ConfigStore(driver)
-        queue = DatabaseQueue(driver)
+        configStore = Tracker.configStore(applicationContext)
+        queue = Tracker.queue(applicationContext)
     }
 
     @SuppressLint("WakelockTimeout")

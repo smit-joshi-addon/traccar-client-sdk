@@ -11,7 +11,7 @@ class TrackerLivenessWorker(
 
     override fun doWork(): Result {
         if (!TrackerService.isRunning &&
-            ConfigStore(sharedDriver(applicationContext)).load() != null
+            Tracker.configStore(applicationContext).load() != null
         ) {
             TrackerService.start(applicationContext)
         }
