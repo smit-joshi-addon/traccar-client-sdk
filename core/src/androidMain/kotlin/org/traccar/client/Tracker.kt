@@ -1,12 +1,9 @@
 package org.traccar.client
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import androidx.activity.ComponentActivity
 import androidx.core.content.edit
 import androidx.core.content.getSystemService
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -28,52 +25,34 @@ class Tracker private constructor(context: Context) {
         Log.store = LogStore(driver)
     }
 
-    suspend fun start(activity: ComponentActivity, config: Config): Boolean {
+    suspend fun start(context: Context, config: Config): Boolean {
         Log.log("Tracker start ${config.serverUrl} ${config.deviceId}")
-        TrackerService.ensureNotificationChannel(activity)
+        TrackerService.ensureNotificationChannel(context)
 
-        val foreground = buildList {
-            add(Manifest.permission.ACCESS_FINE_LOCATION)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && config.location.stopDetection) {
-                add(Manifest.permission.ACTIVITY_RECOGNITION)
-            }
-        }
-        val missing = foreground.filterNot { hasPermission(activity, it) }
-        if (missing.isNotEmpty()) {
-            val results = requestPermissions(activity, missing)
-            if (results.values.any { !it }) {
-                Log.log("Foreground permissions denied")
-                return false
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            !hasPermission(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) &&
-            !requestPermission(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        ) {
-            Log.log("Background location permission denied")
+        if (!ensurePermissions(context)) {
+            Log.log("Permissions denied")
             return false
         }
 
-        val powerManager = activity.getSystemService<PowerManager>()
-        if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(activity.packageName)) {
-            val preferences = activity.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+        val powerManager = context.getSystemService<PowerManager>()
+        if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+            val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
             if (!preferences.getBoolean(BATTERY_PROMPTED_KEY, false)) {
-                activity.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                context.startActivity(
+                    Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
                 preferences.edit { putBoolean(BATTERY_PROMPTED_KEY, true) }
             }
         }
 
         configStore.save(config)
-        WorkManager.getInstance(activity).enqueueUniquePeriodicWork(
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             LIVENESS_WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<TrackerLivenessWorker>(15, TimeUnit.MINUTES).build(),
         )
-        TrackerService.start(activity)
+        TrackerService.start(context)
         return true
     }
 

@@ -1,44 +1,36 @@
 package org.traccar.client
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
-import androidx.activity.ComponentActivity
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
+import android.os.Build
+import kotlinx.coroutines.CompletableDeferred
 
 fun hasPermission(context: Context, permission: String): Boolean =
     context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 
-suspend fun requestPermission(activity: ComponentActivity, permission: String): Boolean =
-    suspendCancellableCoroutine { continuation ->
-        val key = "traccar_permission_${System.nanoTime()}"
-        lateinit var launcher: ActivityResultLauncher<String>
-        launcher = activity.activityResultRegistry.register(
-            key,
-            ActivityResultContracts.RequestPermission(),
-        ) { granted ->
-            launcher.unregister()
-            continuation.resume(granted)
-        }
-        continuation.invokeOnCancellation { launcher.unregister() }
-        launcher.launch(permission)
+internal fun foregroundPermissions(): List<String> = buildList {
+    add(Manifest.permission.ACCESS_FINE_LOCATION)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        add(Manifest.permission.POST_NOTIFICATIONS)
     }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        add(Manifest.permission.ACTIVITY_RECOGNITION)
+    }
+}
 
-suspend fun requestPermissions(
-    activity: ComponentActivity,
-    permissions: List<String>,
-): Map<String, Boolean> = suspendCancellableCoroutine { continuation ->
-    val key = "traccar_permissions_${System.nanoTime()}"
-    lateinit var launcher: ActivityResultLauncher<Array<String>>
-    launcher = activity.activityResultRegistry.register(
-        key,
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result ->
-        launcher.unregister()
-        continuation.resume(result)
-    }
-    continuation.invokeOnCancellation { launcher.unregister() }
-    launcher.launch(permissions.toTypedArray())
+suspend fun ensurePermissions(context: Context): Boolean {
+    val granted = foregroundPermissions().all { hasPermission(context, it) } &&
+        (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION))
+    if (granted) return true
+
+    val deferred = CompletableDeferred<Boolean>()
+    PermissionActivity.pending = deferred
+    context.startActivity(
+        Intent(context, PermissionActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
+    return deferred.await()
 }
