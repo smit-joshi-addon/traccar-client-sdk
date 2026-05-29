@@ -9,6 +9,7 @@ androidx-activity = "1.12.4"
 androidx-activity-compose = "1.12.4"
 play-services-location = "21.3.0"
 androidx-work = "2.10.0"
+vanniktech-publish = "0.30.0"
 compose-bom = "2026.05.00"
 android-minSdk = "24"
 android-compileSdk = "37"
@@ -36,3 +37,4 @@ androidApplication = { id = "com.android.application", version.ref = "agp" }
 kotlinCompose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+vanniktechMavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech-publish" }

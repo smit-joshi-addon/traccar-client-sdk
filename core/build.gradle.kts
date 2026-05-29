@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {
@@ -5,7 +6,11 @@ plugins {
     alias(libs.plugins.androidKotlinMultiplatformLibrary)
     alias(libs.plugins.sqldelight)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.vanniktechMavenPublish)
 }
+
+group = "org.traccar"
+version = System.getenv("RELEASE_VERSION") ?: "0.0.1-SNAPSHOT"
 
 sqldelight {
     databases {
@@ -57,6 +62,35 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+        }
+    }
+}
+
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
+    signAllPublications()
+    coordinates("org.traccar", "traccar-client-sdk", version.toString())
+    pom {
+        name.set("Traccar Client SDK")
+        description.set("Kotlin Multiplatform location tracking SDK for Traccar.")
+        url.set("https://github.com/traccar/traccar-client-sdk")
+        licenses {
+            license {
+                name.set("The Apache License, Version 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+            }
+        }
+        developers {
+            developer {
+                id.set("tananaev")
+                name.set("Anton Tananaev")
+                email.set("anton@traccar.org")
+            }
+        }
+        scm {
+            url.set("https://github.com/traccar/traccar-client-sdk")
+            connection.set("scm:git:https://github.com/traccar/traccar-client-sdk.git")
+            developerConnection.set("scm:git:ssh://git@github.com/traccar/traccar-client-sdk.git")
         }
     }
 }

@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Resolve version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to Maven Central
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: ./gradlew publishToMavenCentral --no-configuration-cache
+
+      - name: Build XCFramework
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: ./gradlew :core:assembleTraccarClientSDKReleaseXCFramework
+
+      - name: Zip XCFramework
+        working-directory: core/build/XCFrameworks/release
+        run: zip -r -y TraccarClientSDK.xcframework.zip TraccarClientSDK.xcframework
+
+      - name: Compute checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(swift package compute-checksum core/build/XCFrameworks/release/TraccarClientSDK.xcframework.zip)
+          echo "checksum=$CHECKSUM" >> "$GITHUB_OUTPUT"
+
+      - name: Point Package.swift at the release artifact
+        env:
+          ASSET_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/TraccarClientSDK.xcframework.zip
+          CHECKSUM: ${{ steps.checksum.outputs.checksum }}
+        run: |
+          python3 - "$ASSET_URL" "$CHECKSUM" <<'PY'
+          import sys
+          url, checksum = sys.argv[1], sys.argv[2]
+          path = "core/Package.swift"
+          src = open(path).read()
+          old = 'path: "build/XCFrameworks/release/TraccarClientSDK.xcframework"'
+          new = f'url: "{url}",\n            checksum: "{checksum}"'
+          assert old in src, "binaryTarget path line not found in Package.swift"
+          open(path, "w").write(src.replace(old, new))
+          PY
+
+      - name: Move tag to release commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add core/Package.swift
+          git commit -m "Release ${GITHUB_REF_NAME}"
+          git tag -f "${GITHUB_REF_NAME}"
+          git push -f origin "${GITHUB_REF_NAME}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            core/build/XCFrameworks/release/TraccarClientSDK.xcframework.zip \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
