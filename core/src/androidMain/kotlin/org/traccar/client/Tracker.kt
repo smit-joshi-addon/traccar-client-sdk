@@ -16,31 +16,16 @@ import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import java.util.concurrent.TimeUnit
 import org.traccar.client.db.Database
 
-object Tracker {
+class Tracker private constructor(context: Context) {
 
-    private const val LIVENESS_WORK_NAME = "tracker-liveness"
-    private const val PREFERENCES_NAME = "traccar-client-sdk"
-    private const val BATTERY_PROMPTED_KEY = "battery-prompted"
+    internal val configStore: ConfigStore
+    internal val queue: DatabaseQueue
 
-    private lateinit var configStoreInstance: ConfigStore
-    private lateinit var queueInstance: DatabaseQueue
-
-    @Synchronized
-    private fun bootstrap(context: Context) {
-        if (::configStoreInstance.isInitialized) return
+    init {
         val driver = AndroidSqliteDriver(Database.Schema, context.applicationContext, "tracker.db")
-        configStoreInstance = ConfigStore(driver)
-        queueInstance = DatabaseQueue(driver)
-    }
-
-    internal fun configStore(context: Context): ConfigStore {
-        bootstrap(context)
-        return configStoreInstance
-    }
-
-    internal fun queue(context: Context): DatabaseQueue {
-        bootstrap(context)
-        return queueInstance
+        configStore = ConfigStore(driver)
+        queue = DatabaseQueue(driver)
+        Log.store = LogStore(driver)
     }
 
     suspend fun start(activity: ComponentActivity, config: Config): Boolean {
@@ -77,7 +62,7 @@ object Tracker {
             }
         }
 
-        configStore(activity).save(config)
+        configStore.save(config)
         WorkManager.getInstance(activity).enqueueUniquePeriodicWork(
             LIVENESS_WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
@@ -89,7 +74,27 @@ object Tracker {
 
     fun stop(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(LIVENESS_WORK_NAME)
-        configStore(context).clear()
+        configStore.clear()
         TrackerService.stop(context)
+    }
+
+    fun getLogs(): List<LogEntry> = Log.store?.all() ?: emptyList()
+
+    fun clearLogs() {
+        Log.store?.clear()
+    }
+
+    companion object {
+        private const val LIVENESS_WORK_NAME = "tracker-liveness"
+        private const val PREFERENCES_NAME = "traccar-client-sdk"
+        private const val BATTERY_PROMPTED_KEY = "battery-prompted"
+
+        @Volatile
+        private var instance: Tracker? = null
+
+        fun shared(context: Context): Tracker =
+            instance ?: synchronized(this) {
+                instance ?: Tracker(context).also { instance = it }
+            }
     }
 }

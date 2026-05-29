@@ -70,11 +70,11 @@ private fun TrackerScreen() {
             Button(
                 onClick = {
                     if (isTracking) {
-                        Tracker.stop(activity)
+                        Tracker.shared(activity).stop(activity)
                         isTracking = false
                     } else {
                         scope.launch {
-                            if (Tracker.start(activity, Config(serverUrl, deviceId))) {
+                            if (Tracker.shared(activity).start(activity, Config(serverUrl, deviceId))) {
                                 isTracking = true
                             }
                         }

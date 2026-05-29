@@ -20,23 +20,21 @@ import io.ktor.client.engine.android.Android
 
 class TrackerService : Service() {
 
-    private lateinit var configStore: ConfigStore
-    private lateinit var queue: DatabaseQueue
+    private lateinit var tracker: Tracker
     private var engine: TrackerEngine? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
         isRunning = true
-        configStore = Tracker.configStore(applicationContext)
-        queue = Tracker.queue(applicationContext)
+        tracker = Tracker.shared(applicationContext)
     }
 
     @SuppressLint("WakelockTimeout")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startInForeground()
 
-        val config = configStore.load()
+        val config = tracker.configStore.load()
         if (config == null) {
             stopSelf()
             return START_NOT_STICKY
@@ -56,7 +54,7 @@ class TrackerService : Service() {
             engine = TrackerEngine(
                 provider = provider,
                 uploader = HttpUploader(config, HttpClient(Android)),
-                queue = queue,
+                queue = tracker.queue,
                 network = AndroidNetworkMonitor(applicationContext),
                 filter = LocationFilter(config.location),
             ).also { it.start() }

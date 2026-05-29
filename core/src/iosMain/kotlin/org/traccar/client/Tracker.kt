@@ -15,6 +15,7 @@ object Tracker {
         val driver = NativeSqliteDriver(Database.Schema, "tracker.db")
         configStore = ConfigStore(driver)
         queue = DatabaseQueue(driver)
+        Log.store = LogStore(driver)
     }
 
     fun start(config: Config) {
@@ -38,5 +39,11 @@ object Tracker {
             network = IosNetworkMonitor(),
             filter = LocationFilter(config.location),
         ).also { it.start() }
+    }
+
+    fun getLogs(): List<LogEntry> = Log.store?.all() ?: emptyList()
+
+    fun clearLogs() {
+        Log.store?.clear()
     }
 }
