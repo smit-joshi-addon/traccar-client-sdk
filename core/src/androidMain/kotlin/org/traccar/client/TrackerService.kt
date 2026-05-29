@@ -33,7 +33,7 @@ class TrackerService : Service() {
 
     @SuppressLint("WakelockTimeout")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startInForeground()
+        startInForeground(NotificationConfig())
 
         val config = tracker.configStore.load()
         if (config == null) {
@@ -41,6 +41,7 @@ class TrackerService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        startInForeground(config.notification)
 
         if (engine == null) {
             if (config.wakeLock) {
@@ -79,8 +80,8 @@ class TrackerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun startInForeground() {
-        val notification = buildNotification()
+    private fun startInForeground(settings: NotificationConfig) {
+        val notification = buildNotification(settings)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
@@ -88,10 +89,10 @@ class TrackerService : Service() {
         }
     }
 
-    private fun buildNotification(): Notification =
+    private fun buildNotification(settings: NotificationConfig): Notification =
         NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_tracker_notification)
-            .setContentText("Location tracking")
+            .setContentText(settings.text)
             .setOngoing(true)
             .build()
 

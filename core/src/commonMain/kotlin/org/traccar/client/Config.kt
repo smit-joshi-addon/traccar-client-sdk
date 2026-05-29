@@ -8,6 +8,12 @@ data class Config(
     val deviceId: String,
     val location: LocationConfig = LocationConfig(),
     val wakeLock: Boolean = false,
+    val notification: NotificationConfig = NotificationConfig(),
+)
+
+@Serializable
+data class NotificationConfig(
+    val text: String = "Location tracking",
 )
 
 @Serializable
