@@ -21,7 +21,7 @@ Traccar server with network-aware retry.
 
 ```kotlin
 dependencies {
-    implementation("org.traccar:traccar-client-sdk:0.0.1")
+    implementation("org.traccar:traccar-client-sdk:0.0.2")
 }
 ```
 
@@ -29,7 +29,7 @@ dependencies {
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/traccar/traccar-client-sdk.git", from: "0.0.1")
+    .package(url: "https://github.com/traccar/traccar-client-sdk.git", from: "0.0.2")
 ]
 ```
 
