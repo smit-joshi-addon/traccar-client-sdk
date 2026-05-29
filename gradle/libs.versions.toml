@@ -12,7 +12,7 @@ androidx-work = "2.10.0"
 vanniktech-publish = "0.30.0"
 compose-bom = "2026.05.00"
 android-minSdk = "24"
-android-compileSdk = "37"
+android-compileSdk = "36"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
