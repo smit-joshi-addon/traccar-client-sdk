@@ -9,7 +9,9 @@ data class Config(
     val location: LocationConfig = LocationConfig(),
     val wakeLock: Boolean = false,
     val notification: NotificationConfig = NotificationConfig(),
-)
+) {
+    constructor(serverUrl: String, deviceId: String) : this(serverUrl, deviceId, LocationConfig())
+}
 
 @Serializable
 data class NotificationConfig(

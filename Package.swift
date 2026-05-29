@@ -12,12 +12,12 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "TraccarClientSDK",
-            path: "build/XCFrameworks/release/TraccarClientSDK.xcframework"
+            path: "core/build/XCFrameworks/release/TraccarClientSDK.xcframework"
         ),
         .target(
             name: "TraccarClientAutoInit",
             dependencies: ["TraccarClientSDK"],
-            path: "Sources/TraccarClientAutoInit",
+            path: "core/Sources/TraccarClientAutoInit",
             publicHeadersPath: "include"
         ),
     ]

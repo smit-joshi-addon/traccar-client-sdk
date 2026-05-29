@@ -44,11 +44,11 @@ jobs:
           (cd core/build/XCFrameworks/release && zip -r -y TraccarClientSDK.xcframework.zip TraccarClientSDK.xcframework)
           CHECKSUM=$(swift package compute-checksum core/build/XCFrameworks/release/TraccarClientSDK.xcframework.zip)
           ASSET_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/TraccarClientSDK.xcframework.zip"
-          sed -i '' "s|path: \"build/XCFrameworks/release/TraccarClientSDK.xcframework\"|url: \"$ASSET_URL\", checksum: \"$CHECKSUM\"|" core/Package.swift
-          grep -q "$CHECKSUM" core/Package.swift
+          sed -i '' "s|path: \"core/build/XCFrameworks/release/TraccarClientSDK.xcframework\"|url: \"$ASSET_URL\", checksum: \"$CHECKSUM\"|" Package.swift
+          grep -q "$CHECKSUM" Package.swift
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add core/Package.swift
+          git add Package.swift
           git commit -m "Release ${GITHUB_REF_NAME}"
           git tag -f "${GITHUB_REF_NAME}"
           git push -f origin "${GITHUB_REF_NAME}"

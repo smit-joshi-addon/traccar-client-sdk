@@ -14,7 +14,7 @@
         queue:[NSOperationQueue mainQueue]
         usingBlock:^(NSNotification *note) {
             if (note.userInfo[UIApplicationLaunchOptionsLocationKey] != nil) {
-                [TraccarClientSDKTracker.shared resume];
+                [TCSDKTracker.shared resume];
             }
         }];
 }
