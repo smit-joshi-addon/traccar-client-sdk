@@ -186,6 +186,7 @@ class IosLocationProvider(
         region.notifyOnEntry = false
         manager.startMonitoringForRegion(region)
         paused = true
+        Log.log("Stationary, pausing location updates")
     }
 
     private fun exitStationary() {
@@ -195,6 +196,7 @@ class IosLocationProvider(
         }
         paused = false
         manager.startUpdatingLocation()
+        Log.log("Moving, resuming location updates")
     }
 
     private fun readBattery(): Int? {

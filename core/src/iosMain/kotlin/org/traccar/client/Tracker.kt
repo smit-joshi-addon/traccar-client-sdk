@@ -19,11 +19,13 @@ object Tracker {
     }
 
     fun start(config: Config) {
+        Log.log("Tracker start ${config.serverUrl} ${config.deviceId}")
         configStore.save(config)
         resume()
     }
 
     fun stop() {
+        Log.log("Tracker stop")
         engine?.stop()
         engine = null
         configStore.clear()
@@ -32,6 +34,7 @@ object Tracker {
     fun resume() {
         if (engine != null) return
         val config = configStore.load() ?: return
+        Log.log("Tracker resume")
         engine = TrackerEngine(
             provider = IosLocationProvider(config.location),
             uploader = HttpUploader(config, HttpClient(Darwin)),

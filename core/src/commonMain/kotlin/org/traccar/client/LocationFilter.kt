@@ -18,6 +18,7 @@ class LocationFilter(
         val previous = lastAccepted
         if (previous == null) {
             lastAccepted = position
+            Log.log("Location accepted ${position.latitude},${position.longitude}")
             return true
         }
         val timeTrigger = (position.time - previous.time) >= config.intervalSeconds * 1000L
@@ -27,8 +28,10 @@ class LocationFilter(
             bearingChange(previous.bearing, position.bearing) >= config.angleDegrees
         if (timeTrigger || distanceTrigger || angleTrigger) {
             lastAccepted = position
+            Log.log("Location accepted ${position.latitude},${position.longitude}")
             return true
         }
+        Log.log("Location filtered ${position.latitude},${position.longitude}")
         return false
     }
 

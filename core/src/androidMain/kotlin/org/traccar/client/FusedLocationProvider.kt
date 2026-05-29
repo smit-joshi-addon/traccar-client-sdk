@@ -154,6 +154,7 @@ class FusedLocationProvider(
         stopTimeoutJob?.cancel()
         stopTimeoutJob = scope?.launch {
             delay(config.stopTimeoutSeconds * 1000L)
+            Log.log("Stationary, pausing location updates")
             stopLocationUpdates()
         }
     }
@@ -161,6 +162,7 @@ class FusedLocationProvider(
     private fun onStillExit() {
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
+        Log.log("Moving, resuming location updates")
         try {
             startLocationUpdates()
         } catch (_: SecurityException) {

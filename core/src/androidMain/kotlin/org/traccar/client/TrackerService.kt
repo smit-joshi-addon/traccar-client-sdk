@@ -28,6 +28,7 @@ class TrackerService : Service() {
         super.onCreate()
         isRunning = true
         tracker = Tracker.shared(applicationContext)
+        Log.log("Service created")
     }
 
     @SuppressLint("WakelockTimeout")
@@ -36,17 +37,21 @@ class TrackerService : Service() {
 
         val config = tracker.configStore.load()
         if (config == null) {
+            Log.log("No saved config, stopping service")
             stopSelf()
             return START_NOT_STICKY
         }
 
         if (engine == null) {
             if (config.wakeLock) {
+                Log.log("Acquiring wakelock")
                 wakeLock = getSystemService<PowerManager>()
                     ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "traccar:tracker")
                     ?.also { it.acquire() }
             }
-            val provider = if (isGooglePlayServicesAvailable(applicationContext)) {
+            val useFused = isGooglePlayServicesAvailable(applicationContext)
+            Log.log("Using ${if (useFused) "FusedLocationProvider" else "AndroidLocationProvider"}")
+            val provider = if (useFused) {
                 FusedLocationProvider(applicationContext, config.location)
             } else {
                 AndroidLocationProvider(applicationContext, config.location)
@@ -63,6 +68,7 @@ class TrackerService : Service() {
     }
 
     override fun onDestroy() {
+        Log.log("Service destroyed")
         engine?.stop()
         engine = null
         wakeLock?.release()

@@ -26,6 +26,7 @@ class TrackerEngine(
 
     fun start() {
         if (scope != null) return
+        Log.log("Engine started")
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default).apply {
             launch {
                 provider.positions()
@@ -40,6 +41,7 @@ class TrackerEngine(
     }
 
     fun stop() {
+        Log.log("Engine stopped")
         scope?.cancel()
         scope = null
     }
@@ -50,12 +52,16 @@ class TrackerEngine(
             val pending = queue.peek()
             when {
                 pending == null -> wakeUp.first()
-                !network.isOnline.value -> network.isOnline.first { it }
+                !network.isOnline.value -> {
+                    Log.log("Offline, waiting for network")
+                    network.isOnline.first { it }
+                }
                 uploader.upload(pending) -> {
                     queue.removeFirst()
                     backoff = initialBackoffMs
                 }
                 else -> {
+                    Log.log("Upload failed, retrying in ${backoff}ms")
                     delay(backoff)
                     backoff = (backoff * 2).coerceAtMost(maxBackoffMs)
                 }

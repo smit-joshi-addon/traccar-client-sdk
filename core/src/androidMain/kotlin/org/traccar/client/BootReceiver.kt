@@ -10,6 +10,7 @@ class BootReceiver : BroadcastReceiver() {
                 intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) &&
             Tracker.shared(context).configStore.load() != null
         ) {
+            Log.log("Restarting service after ${intent.action}")
             TrackerService.start(context)
         }
     }

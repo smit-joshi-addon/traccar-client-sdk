@@ -13,6 +13,7 @@ class TrackerLivenessWorker(
         if (!TrackerService.isRunning &&
             Tracker.shared(applicationContext).configStore.load() != null
         ) {
+            Log.log("Liveness check restarting service")
             TrackerService.start(applicationContext)
         }
         return Result.success()

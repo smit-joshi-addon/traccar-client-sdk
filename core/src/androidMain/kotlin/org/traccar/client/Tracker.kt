@@ -29,6 +29,7 @@ class Tracker private constructor(context: Context) {
     }
 
     suspend fun start(activity: ComponentActivity, config: Config): Boolean {
+        Log.log("Tracker start ${config.serverUrl} ${config.deviceId}")
         TrackerService.ensureNotificationChannel(activity)
 
         val foreground = buildList {
@@ -43,13 +44,17 @@ class Tracker private constructor(context: Context) {
         val missing = foreground.filterNot { hasPermission(activity, it) }
         if (missing.isNotEmpty()) {
             val results = requestPermissions(activity, missing)
-            if (results.values.any { !it }) return false
+            if (results.values.any { !it }) {
+                Log.log("Foreground permissions denied")
+                return false
+            }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
             !hasPermission(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) &&
             !requestPermission(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         ) {
+            Log.log("Background location permission denied")
             return false
         }
 
@@ -73,6 +78,7 @@ class Tracker private constructor(context: Context) {
     }
 
     fun stop(context: Context) {
+        Log.log("Tracker stop")
         WorkManager.getInstance(context).cancelUniqueWork(LIVENESS_WORK_NAME)
         configStore.clear()
         TrackerService.stop(context)

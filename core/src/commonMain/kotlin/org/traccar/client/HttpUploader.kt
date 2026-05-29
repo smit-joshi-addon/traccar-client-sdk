@@ -25,10 +25,12 @@ class HttpUploader(
             position.bearing?.let { parameter("bearing", it) }
             position.battery?.let { parameter("batt", it) }
         }
+        Log.log("Upload response ${response.status.value}")
         response.status.isSuccess()
     } catch (e: CancellationException) {
         throw e
-    } catch (_: Throwable) {
+    } catch (e: Throwable) {
+        Log.log("Upload error: ${e.message}")
         false
     }
 

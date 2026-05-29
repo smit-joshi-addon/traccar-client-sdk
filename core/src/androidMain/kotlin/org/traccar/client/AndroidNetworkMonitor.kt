@@ -20,18 +20,23 @@ class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
                     network: Network,
                     capabilities: NetworkCapabilities,
                 ) {
-                    isOnline.value = capabilities.isUsable()
+                    update(capabilities.isUsable())
                 }
 
                 override fun onLost(network: Network) {
-                    isOnline.value = false
+                    update(false)
                 }
 
                 override fun onUnavailable() {
-                    isOnline.value = false
+                    update(false)
                 }
             },
         )
+    }
+
+    private fun update(online: Boolean) {
+        if (isOnline.value != online) Log.log("Network ${if (online) "online" else "offline"}")
+        isOnline.value = online
     }
 
     private fun currentStatus(): Boolean =

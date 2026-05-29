@@ -19,7 +19,9 @@ class IosNetworkMonitor : NetworkMonitor {
     init {
         val monitor = nw_path_monitor_create()
         nw_path_monitor_set_update_handler(monitor) { path ->
-            isOnline.value = path != null && nw_path_get_status(path) == nw_path_status_satisfied
+            val online = path != null && nw_path_get_status(path) == nw_path_status_satisfied
+            if (isOnline.value != online) Log.log("Network ${if (online) "online" else "offline"}")
+            isOnline.value = online
         }
         nw_path_monitor_set_queue(monitor, dispatch_queue_create("org.traccar.networkmonitor", null))
         nw_path_monitor_start(monitor)
