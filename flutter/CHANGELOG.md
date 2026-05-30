@@ -1,3 +1,7 @@
+## 0.0.7
+
+* Add `Config.buffer` (default `true`). When `false`, positions upload directly without queue or retry (real-time only).
+
 ## 0.0.6
 
 * Add `isTracking()` to query current tracking state.
