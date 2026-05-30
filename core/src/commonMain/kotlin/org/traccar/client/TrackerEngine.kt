@@ -1,5 +1,6 @@
 package org.traccar.client
 
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class TrackerEngine(
     private val provider: PositionProvider,
@@ -69,6 +71,33 @@ class TrackerEngine(
                     Log.log("Upload failed, retrying in ${backoff}ms")
                     delay(backoff)
                     backoff = (backoff * 2).coerceAtMost(maxBackoffMs)
+                }
+            }
+        }
+    }
+
+    companion object {
+        fun oneShotUpload(
+            provider: PositionProvider,
+            config: Config,
+            httpClient: HttpClient,
+        ) {
+            Log.log("Request position ${config.serverUrl} ${config.deviceId}")
+            val uploader = HttpUploader(config, httpClient)
+            CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+                try {
+                    val position = withTimeoutOrNull(30_000) {
+                        provider.positions().first()
+                    }
+                    if (position != null) {
+                        uploader.upload(position)
+                    } else {
+                        Log.log("Request position timed out")
+                    }
+                } catch (e: Throwable) {
+                    Log.log("Request position failed: ${e.message}")
+                } finally {
+                    httpClient.close()
                 }
             }
         }

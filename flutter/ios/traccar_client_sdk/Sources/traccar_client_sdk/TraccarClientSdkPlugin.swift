@@ -18,6 +18,10 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
     case "stop":
       Tracker.shared.stop()
       result(nil)
+    case "requestPosition":
+      let args = call.arguments as! [String: Any]
+      Tracker.shared.requestPosition(config: parseConfig(args))
+      result(nil)
     case "isTracking":
       result(Tracker.shared.isTracking)
     case "getLogs":

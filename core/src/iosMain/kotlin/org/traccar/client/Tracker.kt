@@ -47,6 +47,14 @@ object Tracker {
         ).also { it.start() }
     }
 
+    fun requestPosition(config: Config) {
+        TrackerEngine.oneShotUpload(
+            provider = IosLocationProvider(config.location.copy(stopDetection = false)),
+            config = config,
+            httpClient = HttpClient(Darwin),
+        )
+    }
+
     fun getLogs(): List<LogEntry> = Log.store?.all() ?: emptyList()
 
     fun clearLogs() {

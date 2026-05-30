@@ -43,6 +43,11 @@ class TraccarClientSdkPlugin :
                 Tracker.shared(context).stop(context)
                 result.success(null)
             }
+            "requestPosition" -> {
+                val config = parseConfig(call.arguments as Map<*, *>)
+                Tracker.shared(context).requestPosition(context, config)
+                result.success(null)
+            }
             "isTracking" -> {
                 result.success(Tracker.shared(context).isTracking)
             }

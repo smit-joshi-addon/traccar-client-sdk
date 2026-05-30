@@ -10,6 +10,10 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
 import java.util.concurrent.TimeUnit
 import org.traccar.client.db.Database
 
@@ -65,6 +69,14 @@ class Tracker private constructor(context: Context) {
         TrackerService.stop(context)
     }
 
+    fun requestPosition(context: Context, config: Config) {
+        TrackerEngine.oneShotUpload(
+            provider = createLocationProvider(context, config.location.copy(stopDetection = false)),
+            config = config,
+            httpClient = HttpClient(Android),
+        )
+    }
+
     fun getLogs(): List<LogEntry> = Log.store?.all() ?: emptyList()
 
     fun clearLogs() {
@@ -83,5 +95,16 @@ class Tracker private constructor(context: Context) {
             instance ?: synchronized(this) {
                 instance ?: Tracker(context).also { instance = it }
             }
+    }
+}
+
+internal fun createLocationProvider(context: Context, config: LocationConfig): PositionProvider {
+    val useFused = GoogleApiAvailability.getInstance()
+        .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+    Log.log("Using ${if (useFused) "FusedLocationProvider" else "AndroidLocationProvider"}")
+    return if (useFused) {
+        FusedLocationProvider(context, config)
+    } else {
+        AndroidLocationProvider(context, config)
     }
 }

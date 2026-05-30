@@ -101,6 +101,13 @@ class TraccarClientSdk {
   /// Stops tracking.
   Future<void> stop() => _channel.invokeMethod<void>('stop');
 
+  /// Requests a single position fix and uploads it to the server. Works
+  /// independently of [start] / [stop]; on Android the call must originate
+  /// from a context allowed to receive location (foreground activity or
+  /// high-priority FCM message handler).
+  Future<void> requestPosition(Config config) =>
+      _channel.invokeMethod<void>('requestPosition', config._toMap());
+
   /// Returns whether tracking is currently active.
   Future<bool> isTracking() async {
     final result = await _channel.invokeMethod<bool>('isTracking');

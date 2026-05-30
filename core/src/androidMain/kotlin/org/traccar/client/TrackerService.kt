@@ -13,8 +13,6 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
-import com.google.android.gms.common.ConnectionResult
-import com.google.android.gms.common.GoogleApiAvailability
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 
@@ -50,15 +48,8 @@ class TrackerService : Service() {
                     ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "traccar:tracker")
                     ?.also { it.acquire() }
             }
-            val useFused = isGooglePlayServicesAvailable(applicationContext)
-            Log.log("Using ${if (useFused) "FusedLocationProvider" else "AndroidLocationProvider"}")
-            val provider = if (useFused) {
-                FusedLocationProvider(applicationContext, config.location)
-            } else {
-                AndroidLocationProvider(applicationContext, config.location)
-            }
             engine = TrackerEngine(
-                provider = provider,
+                provider = createLocationProvider(applicationContext, config.location),
                 uploader = HttpUploader(config, HttpClient(Android)),
                 queue = tracker.queue,
                 network = AndroidNetworkMonitor(applicationContext),
@@ -128,6 +119,3 @@ class TrackerService : Service() {
         }
     }
 }
-
-private fun isGooglePlayServicesAvailable(context: Context): Boolean =
-    GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
