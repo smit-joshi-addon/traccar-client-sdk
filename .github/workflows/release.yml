@@ -74,6 +74,7 @@ jobs:
 
       - name: Publish to pub.dev
         working-directory: flutter
+        timeout-minutes: 5
         run: |
           flutter pub get
-          flutter pub publish --force
+          dart pub publish --force
