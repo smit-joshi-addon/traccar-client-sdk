@@ -1,3 +1,7 @@
+## 0.0.8
+
+* Add `requestPosition(Config)` for a one-off fix and upload, independent of `start`/`stop`. Disables stop-detection on the provider and applies a 30s timeout.
+
 ## 0.0.7
 
 * Add `Config.buffer` (default `true`). When `false`, positions upload directly without queue or retry (real-time only).
