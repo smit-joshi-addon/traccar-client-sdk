@@ -68,6 +68,7 @@ jobs:
             --title "${GITHUB_REF_NAME}" \
             --generate-notes
 
+      - uses: dart-lang/setup-dart@v1
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -76,5 +77,5 @@ jobs:
         working-directory: flutter
         timeout-minutes: 5
         run: |
-          flutter pub get
-          dart pub publish --force
+          dart pub get
+          dart pub publish -f

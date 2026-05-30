@@ -1,6 +1,6 @@
-## 0.0.4
+## 0.0.5
 
-* No functional changes; republish to fix pub.dev publishing pipeline.
+* No functional changes; ships pub.dev publishing pipeline fix.
 
 ## 0.0.3
 
