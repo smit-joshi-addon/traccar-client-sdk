@@ -1,3 +1,7 @@
+## 0.0.6
+
+* Add `isTracking()` to query current tracking state.
+
 ## 0.0.5
 
 * No functional changes; ships pub.dev publishing pipeline fix.
