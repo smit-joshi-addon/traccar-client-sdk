@@ -47,6 +47,7 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
         stationaryRadiusMeters: Int32(location["stationaryRadiusMeters"] as! Int)
       ),
       wakeLock: args["wakeLock"] as! Bool,
+      buffer: args["buffer"] as! Bool,
       notification: NotificationConfig(text: notification["text"] as! String)
     )
   }

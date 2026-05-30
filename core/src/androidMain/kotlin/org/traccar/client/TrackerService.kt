@@ -63,6 +63,7 @@ class TrackerService : Service() {
                 queue = tracker.queue,
                 network = AndroidNetworkMonitor(applicationContext),
                 filter = LocationFilter(config.location),
+                buffer = config.buffer,
             ).also { it.start() }
         }
         return START_REDELIVER_INTENT

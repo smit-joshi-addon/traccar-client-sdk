@@ -18,6 +18,7 @@ class TrackerEngine(
     private val queue: PositionQueue,
     private val network: NetworkMonitor,
     private val filter: PositionFilter,
+    private val buffer: Boolean = true,
     private val initialBackoffMs: Long = 5_000,
     private val maxBackoffMs: Long = 5 * 60_000,
 ) {
@@ -31,9 +32,13 @@ class TrackerEngine(
             launch {
                 provider.positions()
                     .filter { filter.accept(it) }
-                    .collect {
-                        queue.enqueue(it)
-                        wakeUp.tryEmit(Unit)
+                    .collect { position ->
+                        if (buffer) {
+                            queue.enqueue(position)
+                            wakeUp.tryEmit(Unit)
+                        } else {
+                            uploader.upload(position)
+                        }
                     }
             }
             launch { syncLoop() }

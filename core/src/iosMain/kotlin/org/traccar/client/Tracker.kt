@@ -43,6 +43,7 @@ object Tracker {
             queue = queue,
             network = IosNetworkMonitor(),
             filter = LocationFilter(config.location),
+            buffer = config.buffer,
         ).also { it.start() }
     }
 

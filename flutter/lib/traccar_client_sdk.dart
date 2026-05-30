@@ -50,6 +50,7 @@ class Config {
     required this.deviceId,
     this.location = const LocationConfig(),
     this.wakeLock = false,
+    this.buffer = true,
     this.notification = const NotificationConfig(),
   });
 
@@ -59,6 +60,12 @@ class Config {
 
   /// Hold a wakelock while tracking (Android only).
   final bool wakeLock;
+
+  /// When true, persist positions to a local queue and retry on network
+  /// failure. When false, attempt a direct upload for each position and
+  /// drop it on failure (real-time only).
+  final bool buffer;
+
   final NotificationConfig notification;
 
   Map<String, Object?> _toMap() => {
@@ -66,6 +73,7 @@ class Config {
         'deviceId': deviceId,
         'location': location._toMap(),
         'wakeLock': wakeLock,
+        'buffer': buffer,
         'notification': notification._toMap(),
       };
 }

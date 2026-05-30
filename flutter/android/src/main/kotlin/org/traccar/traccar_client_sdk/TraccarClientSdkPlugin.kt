@@ -81,6 +81,7 @@ class TraccarClientSdkPlugin :
                 stationaryRadiusMeters = (location["stationaryRadiusMeters"] as Number).toInt(),
             ),
             wakeLock = args["wakeLock"] as Boolean,
+            buffer = args["buffer"] as Boolean,
             notification = NotificationConfig(text = notification["text"] as String),
         )
     }
