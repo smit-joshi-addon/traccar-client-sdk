@@ -10,6 +10,7 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -39,16 +40,21 @@ jobs:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: ./gradlew :core:assembleTraccarClientSDKReleaseXCFramework
 
-      - name: Package and tag the XCFramework
+      - name: Prepare release commit and tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           (cd core/build/XCFrameworks/release && zip -r -y TraccarClientSDK.xcframework.zip TraccarClientSDK.xcframework)
           CHECKSUM=$(swift package compute-checksum core/build/XCFrameworks/release/TraccarClientSDK.xcframework.zip)
           ASSET_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/TraccarClientSDK.xcframework.zip"
           sed -i '' "s|path: \"core/build/XCFrameworks/release/TraccarClientSDK.xcframework\"|url: \"$ASSET_URL\", checksum: \"$CHECKSUM\"|" Package.swift
           grep -q "$CHECKSUM" Package.swift
+          sed -i '' "s/^version: .*/version: ${VERSION}/" flutter/pubspec.yaml
+          sed -i '' "s|traccar-client-sdk:[^\"]*|traccar-client-sdk:${VERSION}|" flutter/android/build.gradle.kts
+          sed -i '' "s|exact: \"[^\"]*\"|exact: \"${VERSION}\"|" flutter/ios/traccar_client_sdk/Package.swift
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Package.swift
+          git add Package.swift flutter/pubspec.yaml flutter/android/build.gradle.kts flutter/ios/traccar_client_sdk/Package.swift
           git commit -m "Release ${GITHUB_REF_NAME}"
           git tag -f "${GITHUB_REF_NAME}"
           git push -f origin "${GITHUB_REF_NAME}"
@@ -61,3 +67,13 @@ jobs:
             core/build/XCFrameworks/release/TraccarClientSDK.xcframework.zip \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Publish to pub.dev
+        working-directory: flutter
+        run: |
+          flutter pub get
+          flutter pub publish --force
