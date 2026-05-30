@@ -18,6 +18,8 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
     case "stop":
       Tracker.shared.stop()
       result(nil)
+    case "isTracking":
+      result(Tracker.shared.isTracking)
     case "getLogs":
       let entries = Tracker.shared.getLogs().map { ["time": $0.time, "message": $0.message] as [String: Any] }
       result(entries)

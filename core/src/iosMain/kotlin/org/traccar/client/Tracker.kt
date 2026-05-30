@@ -11,6 +11,8 @@ object Tracker {
     private val queue: DatabaseQueue
     private var engine: TrackerEngine? = null
 
+    val isTracking: Boolean get() = engine != null
+
     init {
         val driver = NativeSqliteDriver(Database.Schema, "tracker.db")
         configStore = ConfigStore(driver)

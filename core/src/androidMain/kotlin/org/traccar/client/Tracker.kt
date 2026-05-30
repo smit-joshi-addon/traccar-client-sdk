@@ -18,6 +18,8 @@ class Tracker private constructor(context: Context) {
     internal val configStore: ConfigStore
     internal val queue: DatabaseQueue
 
+    val isTracking: Boolean get() = TrackerService.isRunning
+
     init {
         val driver = AndroidSqliteDriver(Database.Schema, context.applicationContext, "tracker.db")
         configStore = ConfigStore(driver)

@@ -93,6 +93,12 @@ class TraccarClientSdk {
   /// Stops tracking.
   Future<void> stop() => _channel.invokeMethod<void>('stop');
 
+  /// Returns whether tracking is currently active.
+  Future<bool> isTracking() async {
+    final result = await _channel.invokeMethod<bool>('isTracking');
+    return result ?? false;
+  }
+
   /// Returns recent diagnostic entries, oldest first.
   Future<List<LogEntry>> getLogs() async {
     final raw =

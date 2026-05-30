@@ -43,6 +43,9 @@ class TraccarClientSdkPlugin :
                 Tracker.shared(context).stop(context)
                 result.success(null)
             }
+            "isTracking" -> {
+                result.success(Tracker.shared(context).isTracking)
+            }
             "getLogs" -> {
                 val entries = Tracker.shared(context).getLogs().map {
                     mapOf("time" to it.time, "message" to it.message)
