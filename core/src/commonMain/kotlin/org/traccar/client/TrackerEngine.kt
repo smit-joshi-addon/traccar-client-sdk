@@ -4,9 +4,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -23,7 +23,7 @@ class TrackerEngine(
     private val maxBackoffMs: Long = 5 * 60_000,
 ) {
     private var scope: CoroutineScope? = null
-    private val wakeUp = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val wakeUp = Channel<Unit>(Channel.CONFLATED)
 
     fun start() {
         if (scope != null) return
@@ -35,7 +35,7 @@ class TrackerEngine(
                     .collect { position ->
                         if (buffer) {
                             queue.enqueue(position)
-                            wakeUp.tryEmit(Unit)
+                            wakeUp.trySend(Unit)
                         } else {
                             uploader.upload(position)
                         }
@@ -56,7 +56,7 @@ class TrackerEngine(
         while (currentCoroutineContext().isActive) {
             val pending = queue.peek()
             when {
-                pending == null -> wakeUp.first()
+                pending == null -> wakeUp.receive()
                 !network.isOnline.value -> {
                     Log.log("Offline, waiting for network")
                     network.isOnline.first { it }
