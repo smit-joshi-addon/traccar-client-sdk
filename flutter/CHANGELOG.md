@@ -1,3 +1,7 @@
+## 0.0.12
+
+* Send position uploads as `POST` with form-encoded body instead of `GET` query string.
+
 ## 0.0.11
 
 * Fix iOS build broken in 0.0.10 by an incorrect `NSDate` constructor used for the motion history query window.
