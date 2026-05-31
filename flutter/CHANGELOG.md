@@ -1,3 +1,9 @@
+## 0.0.14
+
+* Drop the activity-recognition snapshot subscription added in 0.0.10. The transition subscription itself delivers the current state as an `ENTER` event on registration (verified on Android, assumed by symmetry on iOS), so the separate snapshot path is redundant.
+* Remove `ON_FOOT` from the Android activity transition request as a precaution; the remaining types (`STILL`, `IN_VEHICLE`, `ON_BICYCLE`, `RUNNING`, `WALKING`) cover all real movement cases.
+* Log every activity transition with human-readable names on Android, and every motion update on iOS, to aid stop-detection diagnostics.
+
 ## 0.0.13
 
 * Fix Android stop-detection silently never engaging: the activity recognition broadcast receiver was registered with `RECEIVER_NOT_EXPORTED`, which blocks PendingIntent deliveries originated by Google Play Services. Switched to `RECEIVER_EXPORTED`.
