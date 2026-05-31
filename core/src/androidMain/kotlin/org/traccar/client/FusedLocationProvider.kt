@@ -133,6 +133,7 @@ class FusedLocationProvider(
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                Log.log("Activity broadcast received: ${intent.action}")
                 when (intent.action) {
                     ACTIVITY_TRANSITION_ACTION -> handleTransition(intent)
                     ACTIVITY_SNAPSHOT_ACTION -> handleSnapshot(intent)
@@ -147,29 +148,44 @@ class FusedLocationProvider(
             appContext,
             receiver,
             filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED,
+            ContextCompat.RECEIVER_EXPORTED,
         )
         transitionReceiver = receiver
 
-        val transitions = listOf(
-            ActivityTransition.Builder()
-                .setActivityType(DetectedActivity.STILL)
-                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-                .build(),
-            ActivityTransition.Builder()
-                .setActivityType(DetectedActivity.STILL)
-                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT)
-                .build(),
+        val activityTypes = listOf(
+            DetectedActivity.STILL,
+            DetectedActivity.IN_VEHICLE,
+            DetectedActivity.ON_BICYCLE,
+            DetectedActivity.ON_FOOT,
+            DetectedActivity.RUNNING,
+            DetectedActivity.WALKING,
         )
+        val transitionTypes = listOf(
+            ActivityTransition.ACTIVITY_TRANSITION_ENTER,
+            ActivityTransition.ACTIVITY_TRANSITION_EXIT,
+        )
+        val transitions = activityTypes.flatMap { activityType ->
+            transitionTypes.map { transitionType ->
+                ActivityTransition.Builder()
+                    .setActivityType(activityType)
+                    .setActivityTransition(transitionType)
+                    .build()
+            }
+        }
         activityClient.requestActivityTransitionUpdates(
             ActivityTransitionRequest(transitions),
             transitionPendingIntent,
         )
+            .addOnSuccessListener { Log.log("Activity transition updates registered") }
+            .addOnFailureListener { Log.log("Activity transition updates failed: $it") }
         activityClient.requestActivityUpdates(0, snapshotPendingIntent)
+            .addOnSuccessListener { Log.log("Activity snapshot updates registered") }
+            .addOnFailureListener { Log.log("Activity snapshot updates failed: $it") }
     }
 
     private fun handleTransition(intent: Intent) {
         val result = ActivityTransitionResult.extractResult(intent) ?: return
+        Log.log("Activity transition: ${result.transitionEvents.joinToString { "${it.activityType}/${it.transitionType}" }}")
         result.transitionEvents.forEach { event ->
             if (event.activityType != DetectedActivity.STILL) return@forEach
             if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
@@ -182,6 +198,7 @@ class FusedLocationProvider(
 
     private fun handleSnapshot(intent: Intent) {
         val result = ActivityRecognitionResult.extractResult(intent) ?: return
+        Log.log("Activity snapshot: ${result.mostProbableActivity.type}/${result.mostProbableActivity.confidence}")
         activitySnapshotPendingIntent?.let { activityClient.removeActivityUpdates(it) }
         activitySnapshotPendingIntent = null
         if (result.mostProbableActivity.type == DetectedActivity.STILL) {

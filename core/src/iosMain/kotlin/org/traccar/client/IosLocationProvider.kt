@@ -144,25 +144,49 @@ class IosLocationProvider(
     }
 
     private fun startMotionMonitoring() {
+        if (!CMMotionActivityManager.isActivityAvailable()) {
+            Log.log("Motion activity not available on this device")
+            return
+        }
         val activity = CMMotionActivityManager()
         activityManager = activity
         val now = NSDate()
         val recent = now.dateByAddingTimeInterval(-MOTION_QUERY_WINDOW_SECONDS)
-        activity.queryActivityStartingFromDate(recent, now, NSOperationQueue.mainQueue) { activities, _ ->
+        activity.queryActivityStartingFromDate(recent, now, NSOperationQueue.mainQueue) { activities, error ->
+            if (error != null) {
+                Log.log("Motion query failed: ${error.localizedDescription}")
+                return@queryActivityStartingFromDate
+            }
             val current = activities?.lastOrNull() as? CMMotionActivity
                 ?: return@queryActivityStartingFromDate
+            Log.log("Motion query result: ${current.describe()}")
             if (current.stationary) {
                 onStationaryDetected()
             }
         }
         activity.startActivityUpdatesToQueue(NSOperationQueue.mainQueue) { motion ->
             if (motion == null) return@startActivityUpdatesToQueue
+            Log.log("Motion update: ${motion.describe()}")
             when {
                 motion.stationary -> onStationaryDetected()
                 motion.walking || motion.running || motion.automotive || motion.cycling ->
                     onMovingDetected()
             }
         }
+        Log.log("Motion updates subscribed")
+    }
+
+    private fun CMMotionActivity.describe(): String {
+        val types = buildList {
+            if (stationary) add("stationary")
+            if (walking) add("walking")
+            if (running) add("running")
+            if (automotive) add("automotive")
+            if (cycling) add("cycling")
+            if (unknown) add("unknown")
+        }
+        val label = if (types.isEmpty()) "none" else types.joinToString("/")
+        return "$label/confidence=$confidence"
     }
 
     private fun onStationaryDetected() {
