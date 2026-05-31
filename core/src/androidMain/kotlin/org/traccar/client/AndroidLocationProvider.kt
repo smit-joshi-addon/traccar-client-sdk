@@ -26,7 +26,7 @@ class AndroidLocationProvider(
         }
         locationManager.requestLocationUpdates(
             config.accuracy.toAndroidProvider(),
-            config.intervalSeconds * 1000L,
+            if (config.distanceMeters > 0) 0L else config.intervalSeconds * 1000L,
             config.distanceMeters.toFloat(),
             listener,
             Looper.getMainLooper(),

@@ -87,7 +87,7 @@ class FusedLocationProvider(
         }
         val request = LocationRequest.Builder(
             config.accuracy.toFusedPriority(),
-            config.intervalSeconds * 1000L,
+            if (config.distanceMeters > 0) 0L else config.intervalSeconds * 1000L,
         )
             .setMinUpdateDistanceMeters(config.distanceMeters.toFloat())
             .build()
