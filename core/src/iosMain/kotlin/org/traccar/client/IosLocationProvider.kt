@@ -31,6 +31,7 @@ import platform.CoreMotion.CMMotionActivityManager
 import platform.Foundation.NSDate
 import platform.Foundation.NSError
 import platform.Foundation.NSOperationQueue
+import platform.Foundation.dateByAddingTimeInterval
 import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIDevice
 import platform.darwin.NSObject
@@ -146,7 +147,7 @@ class IosLocationProvider(
         val activity = CMMotionActivityManager()
         activityManager = activity
         val now = NSDate()
-        val recent = NSDate.dateWithTimeIntervalSinceNow(-MOTION_QUERY_WINDOW_SECONDS)
+        val recent = now.dateByAddingTimeInterval(-MOTION_QUERY_WINDOW_SECONDS)
         activity.queryActivityStartingFromDate(recent, now, NSOperationQueue.mainQueue) { activities, _ ->
             val current = activities?.lastOrNull() as? CMMotionActivity
                 ?: return@queryActivityStartingFromDate
