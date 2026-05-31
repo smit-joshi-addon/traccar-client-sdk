@@ -1,6 +1,6 @@
 # traccar_client_sdk
 
-Flutter plugin for background location tracking. Posts updates to a [Traccar](https://www.traccar.org) server. Wraps the [Traccar Client SDK](https://github.com/traccar/traccar-client-sdk) for Android and iOS — see the main repository for architecture, reliability, and configuration details.
+Flutter plugin for background location tracking. Sends position updates over a simple HTTP GET protocol - works with [Traccar](https://www.traccar.org) and any compatible server. Wraps the [Traccar Client SDK](https://github.com/traccar/traccar-client-sdk) for Android and iOS - see the main repository for architecture, reliability, and configuration details.
 
 Requires Android API 24+ and iOS 15+.
 
@@ -21,12 +21,12 @@ await tracker.stop();
 
 ### API
 
-- `start(Config)` — begin tracking. Returns `false` if required Android permissions were denied.
-- `stop()` — stop tracking and clear saved config.
-- `requestPosition(Config)` — one-off fix and upload, independent of `start`/`stop`.
-- `isTracking()` — query current state.
-- `getLogs()` — recent diagnostic entries (`time` ms, `message`).
-- `clearLogs()` — clear the diagnostic store.
+- `start(Config)` - begin tracking. Returns `false` if required Android permissions were denied.
+- `stop()` - stop tracking and clear saved config.
+- `requestPosition(Config)` - one-off fix and upload, independent of `start`/`stop`.
+- `isTracking()` - query current state.
+- `getLogs()` - recent diagnostic entries (`time` ms, `message`).
+- `clearLogs()` - clear the diagnostic store.
 
 ### Configuration
 
@@ -46,4 +46,4 @@ and enable the **Location updates** background mode in your target capabilities.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+Apache License 2.0 - see [LICENSE](LICENSE).

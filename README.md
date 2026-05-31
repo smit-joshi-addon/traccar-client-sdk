@@ -1,11 +1,11 @@
 # Traccar Client SDK
 
-A Kotlin Multiplatform background location tracking SDK for [Traccar](https://www.traccar.org). Runs on Android and iOS, persists positions in a local SQLite queue, and uploads them to a Traccar server with network-aware retry.
+A Kotlin Multiplatform background location tracking SDK for [Traccar](https://www.traccar.org) - and any other server that accepts the same simple HTTP GET protocol. Runs on Android and iOS, persists positions in a local SQLite queue, and uploads them with network-aware retry.
 
 This repository publishes two artifacts:
 
-- **Native SDK** — Maven Central (`org.traccar:traccar-client-sdk`) and an XCFramework distributed via Swift Package Manager.
-- **Flutter plugin** — pub.dev (`traccar_client_sdk`).
+- **Native SDK** - Maven Central (`org.traccar:traccar-client-sdk`) and an XCFramework distributed via Swift Package Manager.
+- **Flutter plugin** - pub.dev (`traccar_client_sdk`).
 
 ## Install
 
@@ -87,8 +87,8 @@ await tracker.stop();
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `serverUrl` | `String` | — | Traccar server endpoint (`https://demo.traccar.org`). |
-| `deviceId` | `String` | — | Device identifier reported to the server. |
+| `serverUrl` | `String` | - | Traccar server endpoint (`https://demo.traccar.org`). |
+| `deviceId` | `String` | - | Device identifier reported to the server. |
 | `location` | `LocationConfig` | defaults | Tuning parameters for the location pipeline. |
 | `wakeLock` | `Boolean` | `false` | Hold a partial CPU wakelock while tracking (Android only). |
 | `buffer` | `Boolean` | `true` | When `true`, persist positions to a local SQLite queue and retry on failure. When `false`, attempt direct upload per position and drop on failure (real-time only). |
@@ -104,7 +104,7 @@ await tracker.stop();
 | `angleDegrees` | `Int` | `0` | Heading-change threshold for additional acceptance. `0` disables. |
 | `stopDetection` | `Boolean` | `true` | Pause GPS while the user is stationary (motion-aware). |
 | `stopTimeoutSeconds` | `Int` | `60` | How long the user must be detected as STILL before location updates pause. |
-| `stationaryRadiusMeters` | `Int` | `100` | iOS only — radius of the geofence monitored around the stationary point. |
+| `stationaryRadiusMeters` | `Int` | `100` | iOS only - radius of the geofence monitored around the stationary point. |
 
 `Accuracy.HIGHEST` is a special mode: it overrides `distanceMeters = 0`, `intervalSeconds = 0`, and `stopDetection = false`, requesting the maximum-rate stream from the OS. Use it for navigation-style scenarios where battery is not a concern.
 
@@ -141,12 +141,12 @@ The pipeline is the same on both platforms:
 PositionProvider → LocationFilter → TrackerEngine → PositionQueue → HttpUploader → server
 ```
 
-- **PositionProvider** — wraps the platform location API. On Android, `FusedLocationProvider` is preferred when Google Play Services is available, otherwise `AndroidLocationProvider` (plain `LocationManager`). On iOS, `IosLocationProvider` wraps `CLLocationManager`. Each provider also subscribes to activity recognition so the engine can pause GPS while the user is stationary.
-- **LocationFilter** — application-level OR filter: a position is accepted if it satisfies any of the time, distance, or angle thresholds.
-- **TrackerEngine** — collects accepted positions and, depending on `Config.buffer`, either enqueues them for retry-on-failure upload or attempts a direct upload per position. Sync loop uses exponential backoff (5s → 5min) on upload failure and waits on `NetworkMonitor` when offline.
-- **PositionQueue / DatabaseQueue** — SQLite-backed FIFO queue (via SQLDelight). Survives app and OS restarts.
-- **HttpUploader** — Ktor client; serializes positions as GET-parameter pings to the Traccar server. Returns success on any 2xx.
-- **NetworkMonitor** — platform-specific connectivity observer used by the sync loop to wait for the network before retrying.
+- **PositionProvider** - wraps the platform location API. On Android, `FusedLocationProvider` is preferred when Google Play Services is available, otherwise `AndroidLocationProvider` (plain `LocationManager`). On iOS, `IosLocationProvider` wraps `CLLocationManager`. Each provider also subscribes to activity recognition so the engine can pause GPS while the user is stationary.
+- **LocationFilter** - application-level OR filter: a position is accepted if it satisfies any of the time, distance, or angle thresholds.
+- **TrackerEngine** - collects accepted positions and, depending on `Config.buffer`, either enqueues them for retry-on-failure upload or attempts a direct upload per position. Sync loop uses exponential backoff (5s → 5min) on upload failure and waits on `NetworkMonitor` when offline.
+- **PositionQueue / DatabaseQueue** - SQLite-backed FIFO queue (via SQLDelight). Survives app and OS restarts.
+- **HttpUploader** - Ktor client; sends each position as an HTTP GET with query parameters (`id`, `lat`, `lon`, `timestamp`, `accuracy`, optionally `altitude`, `speed` in knots, `bearing`, `batt`). This is the OsmAnd-style protocol Traccar consumes; any server that accepts the same params can be the endpoint. Returns success on any 2xx.
+- **NetworkMonitor** - platform-specific connectivity observer used by the sync loop to wait for the network before retrying.
 
 ### Filters and OS request shape (Android)
 
@@ -156,18 +156,18 @@ PositionProvider → LocationFilter → TrackerEngine → PositionQueue → Http
 
 Both platforms use the OS's activity recognition to pause GPS when the user is sitting still:
 
-- **Android** — `ActivityRecognitionClient.requestActivityTransitionUpdates` (transitions) **and** a one-shot `requestActivityUpdates` snapshot at start so that already-stationary devices are correctly classified rather than waiting for a transition that never fires.
-- **iOS** — `CMMotionActivityManager.startActivityUpdates` (live updates) **and** a `queryActivityStarting` historical query at start (24h window) for the same already-stationary case. When confirmed stationary, the SDK starts monitoring a `CLCircularRegion` around the device so iOS can wake the app on exit.
+- **Android** - `ActivityRecognitionClient.requestActivityTransitionUpdates` (transitions) **and** a one-shot `requestActivityUpdates` snapshot at start so that already-stationary devices are correctly classified rather than waiting for a transition that never fires.
+- **iOS** - `CMMotionActivityManager.startActivityUpdates` (live updates) **and** a `queryActivityStarting` historical query at start (24h window) for the same already-stationary case. When confirmed stationary, the SDK starts monitoring a `CLCircularRegion` around the device so iOS can wake the app on exit.
 
 ### Fast first fix
 
-To avoid a silent initial period when the configured interval is large, both Android providers issue a one-shot `getCurrentLocation` alongside the periodic stream. iOS does not need this — `startUpdatingLocation` delivers within seconds.
+To avoid a silent initial period when the configured interval is large, both Android providers issue a one-shot `getCurrentLocation` alongside the periodic stream. iOS does not need this - `startUpdatingLocation` delivers within seconds.
 
 ### Persistence and recovery
 
-- **`ConfigStore`** — persists the active config so background-launched services know what to do.
-- **`PositionQueue`** — persists positions across restarts.
-- **`LogStore`** — persists the diagnostic log retrievable via `getLogs`.
+- **`ConfigStore`** - persists the active config so background-launched services know what to do.
+- **`PositionQueue`** - persists positions across restarts.
+- **`LogStore`** - persists the diagnostic log retrievable via `getLogs`.
 
 Both platforms hold a small, self-contained SQLite database (`tracker.db`).
 
@@ -183,9 +183,9 @@ Realistic limits: aggressive OEM task killers (Xiaomi/Huawei) can ignore Android
 
 ### iOS
 
-- **Significant Location Changes** (`startMonitoringSignificantLocationChanges`) — the key API that wakes the app from a terminated state on roughly ~500m shifts.
-- **Region monitoring** — when the SDK detects the user is stationary it registers a `CLCircularRegion` around the spot so iOS wakes the app on exit.
-- **`Tracker.resume()`** — must be called from `application(_:didFinishLaunchingWithOptions:)` (or equivalent) so SLC / region wakes actually restart the engine.
+- **Significant Location Changes** (`startMonitoringSignificantLocationChanges`) - the key API that wakes the app from a terminated state on roughly ~500m shifts.
+- **Region monitoring** - when the SDK detects the user is stationary it registers a `CLCircularRegion` around the spot so iOS wakes the app on exit.
+- **`Tracker.resume()`** - must be called from `application(_:didFinishLaunchingWithOptions:)` (or equivalent) so SLC / region wakes actually restart the engine.
 
 Realistic limits: user-initiated force-quit from the App Switcher disables SLC until the user reopens the app; phone reboot requires the user to open the app once before tracking resumes (iOS has no `BootReceiver` equivalent); Low Power Mode can reduce wake frequency.
 
