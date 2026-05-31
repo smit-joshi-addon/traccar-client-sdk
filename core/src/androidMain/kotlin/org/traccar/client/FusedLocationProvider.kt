@@ -1,5 +1,6 @@
 package org.traccar.client
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -9,6 +10,7 @@ import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityRecognitionClient
+import com.google.android.gms.location.ActivityRecognitionResult
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.location.ActivityTransitionResult
@@ -29,6 +31,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@SuppressLint("MissingPermission")
 class FusedLocationProvider(
     context: Context,
     config: LocationConfig,
@@ -42,6 +45,7 @@ class FusedLocationProvider(
     private var emit: ((Position) -> Unit)? = null
     private var locationCallback: LocationCallback? = null
     private var activityPendingIntent: PendingIntent? = null
+    private var activitySnapshotPendingIntent: PendingIntent? = null
     private var transitionReceiver: BroadcastReceiver? = null
     private var stopTimeoutJob: Job? = null
     private var scope: CoroutineScope? = null
@@ -63,14 +67,10 @@ class FusedLocationProvider(
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
         stopLocationUpdates()
-        activityPendingIntent?.let {
-            try {
-                activityClient.removeActivityTransitionUpdates(it)
-            } catch (e: SecurityException) {
-                throw e
-            }
-        }
+        activityPendingIntent?.let { activityClient.removeActivityTransitionUpdates(it) }
         activityPendingIntent = null
+        activitySnapshotPendingIntent?.let { activityClient.removeActivityUpdates(it) }
+        activitySnapshotPendingIntent = null
         transitionReceiver?.let { appContext.unregisterReceiver(it) }
         transitionReceiver = null
         scope?.cancel()
@@ -91,11 +91,7 @@ class FusedLocationProvider(
         )
             .setMinUpdateDistanceMeters(config.distanceMeters.toFloat())
             .build()
-        try {
-            locationClient.requestLocationUpdates(request, callback, Looper.getMainLooper())
-        } catch (e: SecurityException) {
-            throw e
-        }
+        locationClient.requestLocationUpdates(request, callback, Looper.getMainLooper())
         locationCallback = callback
     }
 
@@ -110,44 +106,47 @@ class FusedLocationProvider(
         val request = CurrentLocationRequest.Builder()
             .setPriority(config.accuracy.toFusedPriority())
             .build()
-        try {
-            locationClient.getCurrentLocation(request, token.token)
-                .addOnSuccessListener { location ->
-                    location?.let { emit?.invoke(it.toPosition()) }
-                }
-        } catch (e: SecurityException) {
-            throw e
-        }
+        locationClient.getCurrentLocation(request, token.token)
+            .addOnSuccessListener { location ->
+                location?.let { emit?.invoke(it.toPosition()) }
+            }
     }
 
     private fun startActivityMonitoring() {
-        val intent = Intent(ACTIVITY_TRANSITION_ACTION).setPackage(appContext.packageName)
-        val pendingIntent = PendingIntent.getBroadcast(
+        val transitionIntent = Intent(ACTIVITY_TRANSITION_ACTION).setPackage(appContext.packageName)
+        val transitionPendingIntent = PendingIntent.getBroadcast(
             appContext,
             0,
-            intent,
+            transitionIntent,
             PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        activityPendingIntent = pendingIntent
+        activityPendingIntent = transitionPendingIntent
+
+        val snapshotIntent = Intent(ACTIVITY_SNAPSHOT_ACTION).setPackage(appContext.packageName)
+        val snapshotPendingIntent = PendingIntent.getBroadcast(
+            appContext,
+            1,
+            snapshotIntent,
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        activitySnapshotPendingIntent = snapshotPendingIntent
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                if (!ActivityTransitionResult.hasResult(intent)) return
-                val result = ActivityTransitionResult.extractResult(intent) ?: return
-                result.transitionEvents.forEach { event ->
-                    if (event.activityType != DetectedActivity.STILL) return@forEach
-                    if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
-                        onStillEnter()
-                    } else {
-                        onStillExit()
-                    }
+                when (intent.action) {
+                    ACTIVITY_TRANSITION_ACTION -> handleTransition(intent)
+                    ACTIVITY_SNAPSHOT_ACTION -> handleSnapshot(intent)
                 }
             }
+        }
+        val filter = IntentFilter().apply {
+            addAction(ACTIVITY_TRANSITION_ACTION)
+            addAction(ACTIVITY_SNAPSHOT_ACTION)
         }
         ContextCompat.registerReceiver(
             appContext,
             receiver,
-            IntentFilter(ACTIVITY_TRANSITION_ACTION),
+            filter,
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         transitionReceiver = receiver
@@ -162,13 +161,31 @@ class FusedLocationProvider(
                 .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT)
                 .build(),
         )
-        try {
-            activityClient.requestActivityTransitionUpdates(
-                ActivityTransitionRequest(transitions),
-                pendingIntent,
-            )
-        } catch (e: SecurityException) {
-            throw e
+        activityClient.requestActivityTransitionUpdates(
+            ActivityTransitionRequest(transitions),
+            transitionPendingIntent,
+        )
+        activityClient.requestActivityUpdates(0, snapshotPendingIntent)
+    }
+
+    private fun handleTransition(intent: Intent) {
+        val result = ActivityTransitionResult.extractResult(intent) ?: return
+        result.transitionEvents.forEach { event ->
+            if (event.activityType != DetectedActivity.STILL) return@forEach
+            if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
+                onStillEnter()
+            } else {
+                onStillExit()
+            }
+        }
+    }
+
+    private fun handleSnapshot(intent: Intent) {
+        val result = ActivityRecognitionResult.extractResult(intent) ?: return
+        activitySnapshotPendingIntent?.let { activityClient.removeActivityUpdates(it) }
+        activitySnapshotPendingIntent = null
+        if (result.mostProbableActivity.type == DetectedActivity.STILL) {
+            onStillEnter()
         }
     }
 
@@ -193,6 +210,7 @@ class FusedLocationProvider(
 
     private companion object {
         const val ACTIVITY_TRANSITION_ACTION = "org.traccar.client.ACTIVITY_TRANSITION"
+        const val ACTIVITY_SNAPSHOT_ACTION = "org.traccar.client.ACTIVITY_SNAPSHOT"
     }
 }
 

@@ -26,6 +26,7 @@ import platform.CoreLocation.kCLLocationAccuracyBest
 import platform.CoreLocation.kCLLocationAccuracyBestForNavigation
 import platform.CoreLocation.kCLLocationAccuracyHundredMeters
 import platform.CoreLocation.kCLLocationAccuracyKilometer
+import platform.CoreMotion.CMMotionActivity
 import platform.CoreMotion.CMMotionActivityManager
 import platform.Foundation.NSDate
 import platform.Foundation.NSError
@@ -143,6 +144,16 @@ class IosLocationProvider(
 
     private fun startMotionMonitoring() {
         val activity = CMMotionActivityManager()
+        activityManager = activity
+        val now = NSDate()
+        val recent = NSDate.dateWithTimeIntervalSinceNow(-MOTION_QUERY_WINDOW_SECONDS)
+        activity.queryActivityStartingFromDate(recent, now, NSOperationQueue.mainQueue) { activities, _ ->
+            val current = activities?.lastOrNull() as? CMMotionActivity
+                ?: return@queryActivityStartingFromDate
+            if (current.stationary) {
+                onStationaryDetected()
+            }
+        }
         activity.startActivityUpdatesToQueue(NSOperationQueue.mainQueue) { motion ->
             if (motion == null) return@startActivityUpdatesToQueue
             when {
@@ -151,7 +162,6 @@ class IosLocationProvider(
                     onMovingDetected()
             }
         }
-        activityManager = activity
     }
 
     private fun onStationaryDetected() {
@@ -206,6 +216,7 @@ class IosLocationProvider(
 
     private companion object {
         const val STATIONARY_REGION_ID = "traccar.stationary"
+        const val MOTION_QUERY_WINDOW_SECONDS = 24 * 60 * 60.0
     }
 }
 

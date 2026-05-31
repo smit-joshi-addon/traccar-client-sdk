@@ -1,5 +1,6 @@
 package org.traccar.client
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.location.LocationListener
 import android.location.LocationManager
@@ -9,6 +10,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.location.LocationManagerCompat
 
+@SuppressLint("MissingPermission")
 class AndroidLocationProvider(
     context: Context,
     config: LocationConfig,
@@ -22,18 +24,14 @@ class AndroidLocationProvider(
         val listener = LocationListener { location ->
             emit(location.toPosition())
         }
-        try {
-            locationManager.requestLocationUpdates(
-                config.accuracy.toAndroidProvider(),
-                config.intervalSeconds * 1000L,
-                config.distanceMeters.toFloat(),
-                listener,
-                Looper.getMainLooper(),
-            )
-            requestCurrentLocation(emit)
-        } catch (e: SecurityException) {
-            throw e
-        }
+        locationManager.requestLocationUpdates(
+            config.accuracy.toAndroidProvider(),
+            config.intervalSeconds * 1000L,
+            config.distanceMeters.toFloat(),
+            listener,
+            Looper.getMainLooper(),
+        )
+        requestCurrentLocation(emit)
         this.listener = listener
     }
 
@@ -47,17 +45,13 @@ class AndroidLocationProvider(
     private fun requestCurrentLocation(emit: (Position) -> Unit) {
         val signal = CancellationSignal()
         currentLocationCancellation = signal
-        try {
-            LocationManagerCompat.getCurrentLocation(
-                locationManager,
-                config.accuracy.toAndroidProvider(),
-                signal,
-                ContextCompat.getMainExecutor(appContext),
-            ) { location ->
-                location?.let { emit(it.toPosition()) }
-            }
-        } catch (e: SecurityException) {
-            throw e
+        LocationManagerCompat.getCurrentLocation(
+            locationManager,
+            config.accuracy.toAndroidProvider(),
+            signal,
+            ContextCompat.getMainExecutor(appContext),
+        ) { location ->
+            location?.let { emit(it.toPosition()) }
         }
     }
 }
