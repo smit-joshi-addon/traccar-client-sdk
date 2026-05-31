@@ -12,6 +12,7 @@ import com.google.android.gms.location.ActivityRecognitionClient
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.location.ActivityTransitionResult
+import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -19,6 +20,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,17 +45,21 @@ class FusedLocationProvider(
     private var transitionReceiver: BroadcastReceiver? = null
     private var stopTimeoutJob: Job? = null
     private var scope: CoroutineScope? = null
+    private var currentLocationToken: CancellationTokenSource? = null
 
     override suspend fun start(emit: (Position) -> Unit) {
         this.emit = emit
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         startLocationUpdates()
+        requestCurrentLocation()
         if (config.stopDetection) {
             startActivityMonitoring()
         }
     }
 
     override fun stop() {
+        currentLocationToken?.cancel()
+        currentLocationToken = null
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
         stopLocationUpdates()
@@ -96,6 +102,22 @@ class FusedLocationProvider(
     private fun stopLocationUpdates() {
         locationCallback?.let { locationClient.removeLocationUpdates(it) }
         locationCallback = null
+    }
+
+    private fun requestCurrentLocation() {
+        val token = CancellationTokenSource()
+        currentLocationToken = token
+        val request = CurrentLocationRequest.Builder()
+            .setPriority(config.accuracy.toFusedPriority())
+            .build()
+        try {
+            locationClient.getCurrentLocation(request, token.token)
+                .addOnSuccessListener { location ->
+                    location?.let { emit?.invoke(it.toPosition()) }
+                }
+        } catch (e: SecurityException) {
+            throw e
+        }
     }
 
     private fun startActivityMonitoring() {

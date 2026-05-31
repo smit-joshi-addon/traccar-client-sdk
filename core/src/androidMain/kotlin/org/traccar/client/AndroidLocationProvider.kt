@@ -3,8 +3,11 @@ package org.traccar.client
 import android.content.Context
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.CancellationSignal
 import android.os.Looper
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
+import androidx.core.location.LocationManagerCompat
 
 class AndroidLocationProvider(
     context: Context,
@@ -13,6 +16,7 @@ class AndroidLocationProvider(
 
     private val locationManager: LocationManager = checkNotNull(appContext.getSystemService())
     private var listener: LocationListener? = null
+    private var currentLocationCancellation: CancellationSignal? = null
 
     override suspend fun start(emit: (Position) -> Unit) {
         val listener = LocationListener { location ->
@@ -26,6 +30,7 @@ class AndroidLocationProvider(
                 listener,
                 Looper.getMainLooper(),
             )
+            requestCurrentLocation(emit)
         } catch (e: SecurityException) {
             throw e
         }
@@ -33,8 +38,27 @@ class AndroidLocationProvider(
     }
 
     override fun stop() {
+        currentLocationCancellation?.cancel()
+        currentLocationCancellation = null
         listener?.let { locationManager.removeUpdates(it) }
         listener = null
+    }
+
+    private fun requestCurrentLocation(emit: (Position) -> Unit) {
+        val signal = CancellationSignal()
+        currentLocationCancellation = signal
+        try {
+            LocationManagerCompat.getCurrentLocation(
+                locationManager,
+                config.accuracy.toAndroidProvider(),
+                signal,
+                ContextCompat.getMainExecutor(appContext),
+            ) { location ->
+                location?.let { emit(it.toPosition()) }
+            }
+        } catch (e: SecurityException) {
+            throw e
+        }
     }
 }
 
