@@ -31,7 +31,6 @@ import platform.CoreMotion.CMMotionActivityManager
 import platform.Foundation.NSDate
 import platform.Foundation.NSError
 import platform.Foundation.NSOperationQueue
-import platform.Foundation.dateByAddingTimeInterval
 import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIDevice
 import platform.darwin.NSObject
@@ -150,20 +149,6 @@ class IosLocationProvider(
         }
         val activity = CMMotionActivityManager()
         activityManager = activity
-        val now = NSDate()
-        val recent = now.dateByAddingTimeInterval(-MOTION_QUERY_WINDOW_SECONDS)
-        activity.queryActivityStartingFromDate(recent, now, NSOperationQueue.mainQueue) { activities, error ->
-            if (error != null) {
-                Log.log("Motion query failed: ${error.localizedDescription}")
-                return@queryActivityStartingFromDate
-            }
-            val current = activities?.lastOrNull() as? CMMotionActivity
-                ?: return@queryActivityStartingFromDate
-            Log.log("Motion query result: ${current.describe()}")
-            if (current.stationary) {
-                onStationaryDetected()
-            }
-        }
         activity.startActivityUpdatesToQueue(NSOperationQueue.mainQueue) { motion ->
             if (motion == null) return@startActivityUpdatesToQueue
             Log.log("Motion update: ${motion.describe()}")
@@ -241,7 +226,6 @@ class IosLocationProvider(
 
     private companion object {
         const val STATIONARY_REGION_ID = "traccar.stationary"
-        const val MOTION_QUERY_WINDOW_SECONDS = 24 * 60 * 60.0
     }
 }
 
