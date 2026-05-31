@@ -54,7 +54,6 @@ kotlin {
             implementation(libs.androidx.activity)
             implementation(libs.sqldelight.android.driver)
             implementation(libs.play.services.location)
-            implementation(libs.androidx.work.runtime)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

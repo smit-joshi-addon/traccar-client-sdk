@@ -6,15 +6,11 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.edit
 import androidx.core.content.getSystemService
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
-import java.util.concurrent.TimeUnit
 import org.traccar.client.db.Database
 
 class Tracker private constructor(context: Context) {
@@ -53,18 +49,12 @@ class Tracker private constructor(context: Context) {
         }
 
         configStore.save(config)
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            LIVENESS_WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            PeriodicWorkRequestBuilder<TrackerLivenessWorker>(15, TimeUnit.MINUTES).build(),
-        )
         TrackerService.start(context)
         return true
     }
 
     fun stop(context: Context) {
         Log.log("Tracker stop")
-        WorkManager.getInstance(context).cancelUniqueWork(LIVENESS_WORK_NAME)
         configStore.clear()
         TrackerService.stop(context)
     }
@@ -84,7 +74,6 @@ class Tracker private constructor(context: Context) {
     }
 
     companion object {
-        private const val LIVENESS_WORK_NAME = "tracker-liveness"
         private const val PREFERENCES_NAME = "traccar-client-sdk"
         private const val BATTERY_PROMPTED_KEY = "battery-prompted"
 
