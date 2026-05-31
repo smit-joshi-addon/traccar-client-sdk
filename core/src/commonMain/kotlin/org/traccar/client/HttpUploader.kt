@@ -1,9 +1,9 @@
 package org.traccar.client
 
 import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.client.request.parameter
+import io.ktor.client.request.forms.submitForm
 import io.ktor.client.statement.HttpResponse
+import io.ktor.http.Parameters
 import io.ktor.http.isSuccess
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.round
@@ -14,17 +14,20 @@ class HttpUploader(
 ) : Uploader {
 
     override suspend fun upload(position: Position): Boolean = try {
-        val response: HttpResponse = httpClient.get(config.serverUrl) {
-            parameter("id", config.deviceId)
-            parameter("lat", position.latitude)
-            parameter("lon", position.longitude)
-            parameter("timestamp", position.time / 1000)
-            parameter("accuracy", position.accuracy)
-            position.altitude?.let { parameter("altitude", it) }
-            position.speed?.let { parameter("speed", it.toKnots()) }
-            position.bearing?.let { parameter("bearing", it) }
-            position.battery?.let { parameter("batt", it) }
-        }
+        val response: HttpResponse = httpClient.submitForm(
+            url = config.serverUrl,
+            formParameters = Parameters.build {
+                append("id", config.deviceId)
+                append("lat", position.latitude.toString())
+                append("lon", position.longitude.toString())
+                append("timestamp", (position.time / 1000).toString())
+                append("accuracy", position.accuracy.toString())
+                position.altitude?.let { append("altitude", it.toString()) }
+                position.speed?.let { append("speed", it.toKnots().toString()) }
+                position.bearing?.let { append("bearing", it.toString()) }
+                position.battery?.let { append("batt", it.toString()) }
+            },
+        )
         Log.log("Upload response ${response.status.value}")
         response.status.isSuccess()
     } catch (e: CancellationException) {
