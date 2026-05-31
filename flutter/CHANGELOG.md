@@ -1,3 +1,9 @@
+## 0.0.13
+
+* Fix Android stop-detection silently never engaging: the activity recognition broadcast receiver was registered with `RECEIVER_NOT_EXPORTED`, which blocks PendingIntent deliveries originated by Google Play Services. Switched to `RECEIVER_EXPORTED`.
+* Register activity transitions for all supported types (STILL, IN_VEHICLE, ON_BICYCLE, ON_FOOT, RUNNING, WALKING) so any movement transition is observable, not just STILL enter/exit.
+* Log activity recognition request results and incoming events on both Android and iOS to aid stop-detection debugging.
+
 ## 0.0.12
 
 * Send position uploads as `POST` with form-encoded body instead of `GET` query string.
