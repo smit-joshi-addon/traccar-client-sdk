@@ -1,6 +1,6 @@
 # traccar_client_sdk
 
-Flutter plugin for background location tracking. Posts updates to a [Traccar](https://www.traccar.org) server. Wraps the [Traccar Client SDK](https://github.com/traccar/traccar-client-sdk) for Android and iOS — see the main repository for features, architecture, and reliability details.
+Flutter plugin for background location tracking. Posts updates to a [Traccar](https://www.traccar.org) server. Wraps the [Traccar Client SDK](https://github.com/traccar/traccar-client-sdk) for Android and iOS — see the main repository for architecture, reliability, and configuration details.
 
 Requires Android API 24+ and iOS 15+.
 
@@ -11,23 +11,38 @@ import 'package:traccar_client_sdk/traccar_client_sdk.dart';
 
 final tracker = TraccarClientSdk();
 
-await tracker.start(
+await tracker.start(Config(
   serverUrl: 'https://demo.traccar.org',
   deviceId: '123456',
-);
+));
 
-// later
 await tracker.stop();
-
-// diagnostic logs
-final logs = await tracker.getLogs();
 ```
+
+### API
+
+- `start(Config)` — begin tracking. Returns `false` if required Android permissions were denied.
+- `stop()` — stop tracking and clear saved config.
+- `requestPosition(Config)` — one-off fix and upload, independent of `start`/`stop`.
+- `isTracking()` — query current state.
+- `getLogs()` — recent diagnostic entries (`time` ms, `message`).
+- `clearLogs()` — clear the diagnostic store.
+
+### Configuration
+
+`Config` accepts a `LocationConfig` (`accuracy`, `distanceMeters`, `intervalSeconds`, `angleDegrees`, `stopDetection`, `stopTimeoutSeconds`, `stationaryRadiusMeters`), a Boolean `buffer` (real-time-only when `false`), Android-only `wakeLock`, and a `NotificationConfig` for the Android foreground-service text. See the [main repo](https://github.com/traccar/traccar-client-sdk#configuration) for details and defaults.
 
 ## Permissions
 
-The plugin requests location, notification (Android 13+), and activity recognition (Android 10+) permissions at runtime via a transparent activity. On first start it also prompts to disable battery optimization for reliable background tracking.
+The plugin requests location, notification (Android 13+), and activity recognition (Android 10+) permissions at runtime via a transparent activity. On first start it also opens the *Ignore Battery Optimization* settings screen once.
 
-On iOS, add `NSLocationAlwaysAndWhenInUseUsageDescription` and `NSLocationWhenInUseUsageDescription` keys to your app's `Info.plist`.
+On iOS, add these keys to your app's `Info.plist`:
+
+- `NSLocationAlwaysAndWhenInUseUsageDescription`
+- `NSLocationWhenInUseUsageDescription`
+- `NSMotionUsageDescription`
+
+and enable the **Location updates** background mode in your target capabilities.
 
 ## License
 
