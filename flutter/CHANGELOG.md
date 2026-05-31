@@ -1,3 +1,8 @@
+## 0.0.11
+
+* Fix iOS build broken in 0.0.10 by an incorrect `NSDate` constructor used for the motion history query window.
+* Remove `TrackerLivenessWorker` — Android 12+ restrictions made it silently fail to restart the foreground service; recovery now relies on `START_REDELIVER_INTENT` and `BootReceiver`.
+
 ## 0.0.10
 
 * Detect already-stationary state at start (Android `requestActivityUpdates` snapshot, iOS `queryActivityStarting`) so stop-detection engages even when the user hasn't transitioned since tracking began.
