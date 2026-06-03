@@ -178,6 +178,7 @@ class FusedLocationProvider(
         stopTimeoutJob = scope?.launch {
             delay(config.stopTimeoutSeconds * 1000L)
             Log.log("Stationary, pausing location updates")
+            requestCurrentLocation()
             stopLocationUpdates()
         }
     }

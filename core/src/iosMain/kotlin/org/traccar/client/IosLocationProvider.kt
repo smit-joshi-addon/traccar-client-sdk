@@ -11,6 +11,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import platform.CoreLocation.CLCircularRegion
 import platform.CoreLocation.CLLocation
 import platform.CoreLocation.CLLocationCoordinate2DMake
@@ -48,6 +49,7 @@ class IosLocationProvider(
     private var stopTimeoutJob: Job? = null
     private var scope: CoroutineScope? = null
     private var paused = false
+    private var pendingLocation: CompletableDeferred<CLLocation>? = null
 
     init {
         UIDevice.currentDevice.batteryMonitoringEnabled = true
@@ -64,6 +66,7 @@ class IosLocationProvider(
                     val location = value as CLLocation
                     lastLocation = location
                     emit(location.toPosition(readBattery()))
+                    pendingLocation?.complete(location)
                 }
             }
 
@@ -125,6 +128,8 @@ class IosLocationProvider(
     override fun stop() {
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
+        pendingLocation?.cancel()
+        pendingLocation = null
         activityManager?.stopActivityUpdates()
         activityManager = null
         val manager = locationManager
@@ -192,9 +197,17 @@ class IosLocationProvider(
     }
 
     @OptIn(ExperimentalForeignApi::class)
-    private fun enterStationary() {
-        val location = lastLocation ?: return
+    private suspend fun enterStationary() {
         val manager = locationManager ?: return
+        val deferred = CompletableDeferred<CLLocation>()
+        pendingLocation = deferred
+        manager.requestLocation()
+        val fresh = try {
+            withTimeoutOrNull(10_000L) { deferred.await() }
+        } finally {
+            pendingLocation = null
+        }
+        val location = fresh ?: lastLocation ?: return
         manager.stopUpdatingLocation()
         val (lat, lon) = location.coordinate.useContents { latitude to longitude }
         val region = CLCircularRegion(
