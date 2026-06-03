@@ -46,6 +46,7 @@ class FusedLocationProvider(
     private var activityPendingIntent: PendingIntent? = null
     private var transitionReceiver: BroadcastReceiver? = null
     private var stopTimeoutJob: Job? = null
+    private var heartbeatJob: Job? = null
     private var scope: CoroutineScope? = null
     private var currentLocationToken: CancellationTokenSource? = null
 
@@ -64,6 +65,8 @@ class FusedLocationProvider(
         currentLocationToken = null
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         stopLocationUpdates()
         activityPendingIntent?.let { activityClient.removeActivityTransitionUpdates(it) }
         activityPendingIntent = null
@@ -180,16 +183,32 @@ class FusedLocationProvider(
             Log.log("Stationary, pausing location updates")
             requestCurrentLocation()
             stopLocationUpdates()
+            startHeartbeatLoop()
         }
     }
 
     private fun onStillExit() {
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         Log.log("Moving, resuming location updates")
         try {
             startLocationUpdates()
         } catch (_: SecurityException) {
+        }
+    }
+
+    private fun startHeartbeatLoop() {
+        val intervalSeconds = config.heartbeatIntervalSeconds
+        if (intervalSeconds <= 0) return
+        heartbeatJob?.cancel()
+        heartbeatJob = scope?.launch {
+            while (true) {
+                delay(intervalSeconds * 1000L)
+                Log.log("Heartbeat")
+                emit?.invoke(Position(time = System.currentTimeMillis(), battery = readBattery()))
+            }
         }
     }
 
