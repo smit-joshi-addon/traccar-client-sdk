@@ -1,9 +1,9 @@
 package org.traccar.client
 
 data class Position(
-    val latitude: Double,
-    val longitude: Double,
-    val accuracy: Double,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val accuracy: Double? = null,
     val time: Long,
     val altitude: Double? = null,
     val speed: Double? = null,

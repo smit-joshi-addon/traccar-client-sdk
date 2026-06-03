@@ -28,6 +28,7 @@ data class LocationConfig(
     val stopDetection: Boolean = true,
     val stopTimeoutSeconds: Int = 60,
     val stationaryRadiusMeters: Int = 100,
+    val heartbeatIntervalSeconds: Int = 0,
 )
 
 @Serializable

@@ -1,8 +1,8 @@
 CREATE TABLE Position (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    latitude REAL NOT NULL,
-    longitude REAL NOT NULL,
-    accuracy REAL NOT NULL,
+    latitude REAL,
+    longitude REAL,
+    accuracy REAL,
     time INTEGER NOT NULL,
     altitude REAL,
     speed REAL,

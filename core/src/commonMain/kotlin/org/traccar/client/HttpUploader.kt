@@ -18,10 +18,10 @@ class HttpUploader(
             url = config.serverUrl,
             formParameters = Parameters.build {
                 append("id", config.deviceId)
-                append("lat", position.latitude.toString())
-                append("lon", position.longitude.toString())
+                position.latitude?.let { append("lat", it.toString()) }
+                position.longitude?.let { append("lon", it.toString()) }
                 append("timestamp", (position.time / 1000).toString())
-                append("accuracy", position.accuracy.toString())
+                position.accuracy?.let { append("accuracy", it.toString()) }
                 position.altitude?.let { append("altitude", it.toString()) }
                 position.speed?.let { append("speed", it.toKnots().toString()) }
                 position.bearing?.let { append("bearing", it.toString()) }
