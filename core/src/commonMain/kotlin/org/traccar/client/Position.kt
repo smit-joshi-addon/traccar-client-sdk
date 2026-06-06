@@ -1,5 +1,8 @@
 package org.traccar.client
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Position(
     val latitude: Double? = null,
     val longitude: Double? = null,
