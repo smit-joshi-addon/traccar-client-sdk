@@ -1,3 +1,10 @@
+## 0.0.15
+
+* Persist tracker state across process kills: stationary mode and the location filter's reference position now survive cold launch, so resume after an iOS region exit or Android `BootReceiver` restart no longer re-runs the 60s stop-detection timeout or emits a duplicate-feeling first fix.
+* SDK errors propagate to Flutter as `PlatformException` instead of silently hanging the method-channel result (includes permission denial from `start`).
+* `requestPosition` returns `Future<bool>` indicating whether the upload succeeded; previously fire-and-forget with no result.
+* Internal: all store I/O is properly async (no sync DB on the main thread), tracker construction uses a suspend factory plus Android `ContentProvider` / iOS `+load` for context capture, and runtime state has a single source of truth backed by `StateStore`.
+
 ## 0.0.14
 
 * Drop the activity-recognition snapshot subscription added in 0.0.10. The transition subscription itself delivers the current state as an `ENTER` event on registration (verified on Android, assumed by symmetry on iOS), so the separate snapshot path is redundant.
