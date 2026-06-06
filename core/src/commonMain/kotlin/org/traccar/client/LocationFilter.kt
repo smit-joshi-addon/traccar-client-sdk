@@ -10,18 +10,19 @@ import kotlin.math.sqrt
 
 class LocationFilter(
     private val config: LocationConfig,
+    private val stateStore: StateStore,
 ) : PositionFilter {
 
-    private var lastAccepted: Position? = null
+    private var lastAccepted: Position? = stateStore.state.value.lastAcceptedLocation
 
-    override fun accept(position: Position): Boolean {
+    override suspend fun accept(position: Position): Boolean {
         if (position.latitude == null || position.longitude == null) {
             Log.log("Heartbeat accepted")
             return true
         }
         val previous = lastAccepted
         if (previous == null) {
-            lastAccepted = position
+            persistAccepted(position)
             Log.log("Location accepted ${position.latitude},${position.longitude}")
             return true
         }
@@ -31,12 +32,17 @@ class LocationFilter(
             previous.bearing != null && position.bearing != null &&
             bearingChange(previous.bearing, position.bearing) >= config.angleDegrees
         if (timeTrigger || distanceTrigger || angleTrigger) {
-            lastAccepted = position
+            persistAccepted(position)
             Log.log("Location accepted ${position.latitude},${position.longitude}")
             return true
         }
         Log.log("Location filtered ${position.latitude},${position.longitude}")
         return false
+    }
+
+    private suspend fun persistAccepted(position: Position) {
+        lastAccepted = position
+        stateStore.update { it.copy(lastAcceptedLocation = position) }
     }
 
     private fun distance(a: Position, b: Position): Double {

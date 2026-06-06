@@ -15,6 +15,7 @@ internal actual suspend fun createTracker(): Tracker = withContext(Dispatchers.I
     val httpClient = HttpClient(Darwin)
     val engineBuilder = EngineBuilder(
         queue = DatabaseQueue(driver),
+        stateStore = stateStore,
         networkMonitor = IosNetworkMonitor(),
         createProvider = { IosLocationProvider(it, stateStore) },
         createUploader = { HttpUploader(it, httpClient) },

@@ -77,6 +77,7 @@ class Tracker internal constructor(
 
 class EngineBuilder internal constructor(
     private val queue: PositionQueue,
+    private val stateStore: StateStore,
     private val networkMonitor: NetworkMonitor,
     internal val createProvider: (LocationConfig) -> PositionProvider,
     internal val createUploader: (Config) -> Uploader,
@@ -86,7 +87,7 @@ class EngineBuilder internal constructor(
         uploader = createUploader(config),
         queue = queue,
         network = networkMonitor,
-        filter = LocationFilter(config.location),
+        filter = LocationFilter(config.location, stateStore),
         buffer = config.buffer,
     )
 }

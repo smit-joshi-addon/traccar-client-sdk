@@ -18,6 +18,7 @@ internal actual suspend fun createTracker(): Tracker = withContext(Dispatchers.I
     val httpClient = HttpClient(Android)
     val engineBuilder = EngineBuilder(
         queue = DatabaseQueue(driver),
+        stateStore = stateStore,
         networkMonitor = AndroidNetworkMonitor(appContext),
         createProvider = { createLocationProvider(appContext, it, stateStore) },
         createUploader = { HttpUploader(it, httpClient) },
