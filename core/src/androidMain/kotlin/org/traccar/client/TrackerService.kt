@@ -34,8 +34,8 @@ class TrackerService : Service() {
         startInForeground(NotificationConfig())
 
         val config = tracker.configStore.load()
-        if (config == null) {
-            Log.log("No saved config, stopping service")
+        if (config == null || !tracker.stateStore.load().enabled) {
+            Log.log("Tracking not enabled, stopping service")
             stopSelf()
             return START_NOT_STICKY
         }

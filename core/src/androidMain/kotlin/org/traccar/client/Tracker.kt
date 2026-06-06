@@ -16,13 +16,15 @@ import org.traccar.client.db.Database
 class Tracker private constructor(context: Context) {
 
     internal val configStore: ConfigStore
+    internal val stateStore: StateStore
     internal val queue: DatabaseQueue
 
-    val isTracking: Boolean get() = TrackerService.isRunning
+    val isTracking: Boolean get() = stateStore.load().enabled
 
     init {
         val driver = AndroidSqliteDriver(Database.Schema, context.applicationContext, "tracker.db")
         configStore = ConfigStore(driver)
+        stateStore = StateStore(driver)
         queue = DatabaseQueue(driver)
         Log.store = LogStore(driver)
     }
@@ -49,13 +51,14 @@ class Tracker private constructor(context: Context) {
         }
 
         configStore.save(config)
+        stateStore.save(stateStore.load().copy(enabled = true))
         TrackerService.start(context)
         return true
     }
 
     fun stop(context: Context) {
         Log.log("Tracker stop")
-        configStore.clear()
+        stateStore.save(stateStore.load().copy(enabled = false))
         TrackerService.stop(context)
     }
 
