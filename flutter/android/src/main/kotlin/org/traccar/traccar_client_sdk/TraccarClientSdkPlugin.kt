@@ -49,8 +49,7 @@ class TraccarClientSdkPlugin :
             "requestPosition" -> {
                 val config = parseConfig(call.arguments as Map<*, *>)
                 scope.launch {
-                    sharedTracker().requestPosition(config)
-                    result.success(null)
+                    result.success(sharedTracker().requestPosition(config))
                 }
             }
             "isTracking" -> {

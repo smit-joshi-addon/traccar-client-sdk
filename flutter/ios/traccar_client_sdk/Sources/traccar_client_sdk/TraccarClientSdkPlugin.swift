@@ -30,8 +30,8 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
       let config = parseConfig(args)
       Task {
         let tracker = try await TrackerKt.sharedTracker()
-        tracker.requestPosition(config: config)
-        result(nil)
+        let ok = try await tracker.requestPosition(config: config)
+        result(ok)
       }
     case "isTracking":
       Task {
@@ -41,13 +41,13 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
     case "getLogs":
       Task {
         let tracker = try await TrackerKt.sharedTracker()
-        let entries = tracker.getLogs().map { ["time": $0.time, "message": $0.message] as [String: Any] }
+        let entries = try await tracker.getLogs().map { ["time": $0.time, "message": $0.message] as [String: Any] }
         result(entries)
       }
     case "clearLogs":
       Task {
         let tracker = try await TrackerKt.sharedTracker()
-        tracker.clearLogs()
+        try await tracker.clearLogs()
         result(nil)
       }
     default:

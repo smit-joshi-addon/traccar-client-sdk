@@ -1,25 +1,30 @@
 package org.traccar.client
 
 import app.cash.sqldelight.db.SqlDriver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
 import org.traccar.client.db.Database
 
 class LogStore(driver: SqlDriver) {
 
     private val queries = Database(driver).logEntryQueries
 
-    fun insert(message: String) {
+    suspend fun insert(message: String) = withContext(Dispatchers.IO) {
         queries.insert(time = nowMillis(), message = message)
     }
 
-    fun all(): List<LogEntry> = queries.selectAll().executeAsList().map {
-        LogEntry(time = it.time, message = it.message)
+    suspend fun all(): List<LogEntry> = withContext(Dispatchers.IO) {
+        queries.selectAll().executeAsList().map {
+            LogEntry(time = it.time, message = it.message)
+        }
     }
 
-    fun clear() {
+    suspend fun clear() = withContext(Dispatchers.IO) {
         queries.clear()
     }
 
-    fun trim(keep: Int) {
+    suspend fun trim(keep: Int) = withContext(Dispatchers.IO) {
         queries.trim(keep.toLong())
     }
 }

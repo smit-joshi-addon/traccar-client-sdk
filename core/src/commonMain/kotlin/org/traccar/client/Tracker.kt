@@ -1,5 +1,6 @@
 package org.traccar.client
 
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
@@ -9,10 +10,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 class Tracker internal constructor(
     private val configStore: ConfigStore,
@@ -49,18 +52,25 @@ class Tracker internal constructor(
         onStarted(config)
     }
 
-    fun requestPosition(config: Config) {
-        TrackerEngine.oneShotUpload(
-            provider = engineBuilder.createProvider(config.location.copy(stopDetection = false)),
-            uploader = engineBuilder.createUploader(config),
-        )
+    suspend fun requestPosition(config: Config): Boolean {
+        Log.log("Request position ${config.serverUrl} ${config.deviceId}")
+        val provider = engineBuilder.createProvider(config.location.copy(stopDetection = false))
+        val uploader = engineBuilder.createUploader(config)
+        val position = withTimeoutOrNull(30.seconds) {
+            provider.positions().first()
+        }
+        if (position == null) {
+            Log.log("Request position timed out")
+            return false
+        }
+        return uploader.upload(position)
     }
 
     suspend fun loadConfig(): Config? = configStore.load()
 
-    fun getLogs(): List<LogEntry> = Log.store?.all() ?: emptyList()
+    suspend fun getLogs(): List<LogEntry> = Log.store?.all() ?: emptyList()
 
-    fun clearLogs() {
+    suspend fun clearLogs() {
         Log.store?.clear()
     }
 }

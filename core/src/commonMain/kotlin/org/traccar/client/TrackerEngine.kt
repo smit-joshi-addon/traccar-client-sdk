@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 class TrackerEngine(
     private val provider: PositionProvider,
@@ -78,23 +77,4 @@ class TrackerEngine(
         }
     }
 
-    companion object {
-        fun oneShotUpload(provider: PositionProvider, uploader: Uploader) {
-            Log.log("Request position")
-            CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
-                try {
-                    val position = withTimeoutOrNull(30.seconds) {
-                        provider.positions().first()
-                    }
-                    if (position != null) {
-                        uploader.upload(position)
-                    } else {
-                        Log.log("Request position timed out")
-                    }
-                } catch (e: Throwable) {
-                    Log.log("Request position failed: ${e.message}")
-                }
-            }
-        }
-    }
 }

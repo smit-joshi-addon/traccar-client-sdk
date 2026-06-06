@@ -23,7 +23,7 @@ internal actual suspend fun createTracker(): Tracker = withContext(Dispatchers.I
     )
     Tracker(
         configStore = ConfigStore(driver),
-        stateStore = StateStore(driver),
+        stateStore = StateStore.create(driver),
         engineBuilder = engineBuilder,
         onStarted = { TrackerService.start(appContext) },
         onStopped = { TrackerService.stop() },

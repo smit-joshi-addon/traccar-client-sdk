@@ -21,7 +21,7 @@ internal actual suspend fun createTracker(): Tracker = withContext(Dispatchers.I
     var engine: TrackerEngine? = null
     Tracker(
         configStore = ConfigStore(driver),
-        stateStore = StateStore(driver),
+        stateStore = StateStore.create(driver),
         engineBuilder = engineBuilder,
         onStarted = { config ->
             if (engine == null) engine = engineBuilder.build(config).also { it.start() }

@@ -1,8 +1,11 @@
 package org.traccar.client
 
 import app.cash.sqldelight.db.SqlDriver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.traccar.client.db.Database
 
 class DatabaseQueue(driver: SqlDriver) : PositionQueue {
@@ -10,7 +13,7 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
     private val queries = Database(driver).positionQueries
     private val mutex = Mutex()
 
-    override suspend fun enqueue(position: Position) {
+    override suspend fun enqueue(position: Position) = withContext(Dispatchers.IO) {
         mutex.withLock {
             queries.enqueue(
                 latitude = position.latitude,
@@ -25,22 +28,24 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
         }
     }
 
-    override suspend fun peek(): Position? = mutex.withLock {
-        queries.peek().executeAsOneOrNull()?.let { row ->
-            Position(
-                latitude = row.latitude,
-                longitude = row.longitude,
-                accuracy = row.accuracy,
-                time = row.time,
-                altitude = row.altitude,
-                speed = row.speed,
-                bearing = row.bearing,
-                battery = row.battery?.toInt(),
-            )
+    override suspend fun peek(): Position? = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            queries.peek().executeAsOneOrNull()?.let { row ->
+                Position(
+                    latitude = row.latitude,
+                    longitude = row.longitude,
+                    accuracy = row.accuracy,
+                    time = row.time,
+                    altitude = row.altitude,
+                    speed = row.speed,
+                    bearing = row.bearing,
+                    battery = row.battery?.toInt(),
+                )
+            }
         }
     }
 
-    override suspend fun removeFirst() {
+    override suspend fun removeFirst() = withContext(Dispatchers.IO) {
         mutex.withLock {
             queries.removeFirst()
         }
