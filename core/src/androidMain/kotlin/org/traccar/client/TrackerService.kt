@@ -13,19 +13,20 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.android.Android
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class TrackerService : Service() {
 
-    private lateinit var tracker: Tracker
     private var engine: TrackerEngine? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
-        isRunning = true
-        tracker = Tracker.shared(applicationContext)
         Log.log("Service created")
     }
 
@@ -33,40 +34,35 @@ class TrackerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startInForeground(NotificationConfig())
 
-        val config = tracker.configStore.load()
-        if (config == null || !tracker.stateStore.load().enabled) {
-            Log.log("Tracking not enabled, stopping service")
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        startInForeground(config.notification)
-
-        if (engine == null) {
-            if (config.wakeLock) {
+        serviceScope.launch {
+            val tracker = sharedTracker()
+            val config = tracker.loadConfig()
+            if (config == null || !tracker.isTracking.value) {
+                Log.log("Tracking not enabled, stopping service")
+                stopSelf()
+                return@launch
+            }
+            startInForeground(config.notification)
+            if (config.wakeLock && wakeLock == null) {
                 Log.log("Acquiring wakelock")
                 wakeLock = getSystemService<PowerManager>()
                     ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "traccar:tracker")
                     ?.also { it.acquire() }
             }
-            engine = TrackerEngine(
-                provider = createLocationProvider(applicationContext, config.location),
-                uploader = HttpUploader(config, HttpClient(Android)),
-                queue = tracker.queue,
-                network = AndroidNetworkMonitor(applicationContext),
-                filter = LocationFilter(config.location),
-                buffer = config.buffer,
-            ).also { it.start() }
+            if (engine == null) {
+                engine = tracker.engineBuilder.build(config).also { it.start() }
+            }
         }
         return START_REDELIVER_INTENT
     }
 
     override fun onDestroy() {
         Log.log("Service destroyed")
+        serviceScope.cancel()
         engine?.stop()
         engine = null
         wakeLock?.release()
         wakeLock = null
-        isRunning = false
         super.onDestroy()
     }
 
@@ -92,10 +88,6 @@ class TrackerService : Service() {
         private const val CHANNEL_ID = "tracker"
         private const val NOTIFICATION_ID = 0x7AC0
 
-        @Volatile
-        internal var isRunning = false
-            private set
-
         internal fun ensureNotificationChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             val manager = context.getSystemService<NotificationManager>() ?: return
@@ -114,8 +106,8 @@ class TrackerService : Service() {
             }
         }
 
-        internal fun stop(context: Context) {
-            context.stopService(Intent(context, TrackerService::class.java))
+        internal fun stop() {
+            applicationContext.stopService(Intent(applicationContext, TrackerService::class.java))
         }
     }
 }

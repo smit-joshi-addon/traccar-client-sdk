@@ -13,6 +13,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application>
+        <provider
+            android:name=".TrackerStartup"
+            android:authorities="${applicationId}.traccar.startup"
+            android:exported="false"
+            android:initOrder="200" />
         <activity
             android:name=".PermissionActivity"
             android:exported="false"

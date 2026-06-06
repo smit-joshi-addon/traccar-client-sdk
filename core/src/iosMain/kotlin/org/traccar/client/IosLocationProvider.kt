@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -183,7 +184,7 @@ class IosLocationProvider(
         if (paused) return
         if (stopTimeoutJob?.isActive == true) return
         stopTimeoutJob = scope?.launch {
-            delay(config.stopTimeoutSeconds * 1000L)
+            delay(config.stopTimeoutSeconds.seconds)
             enterStationary()
         }
     }
@@ -203,7 +204,7 @@ class IosLocationProvider(
         pendingLocation = deferred
         manager.requestLocation()
         val fresh = try {
-            withTimeoutOrNull(10_000L) { deferred.await() }
+            withTimeoutOrNull(10.seconds) { deferred.await() }
         } finally {
             pendingLocation = null
         }

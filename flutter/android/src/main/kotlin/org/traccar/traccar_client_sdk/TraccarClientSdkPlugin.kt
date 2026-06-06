@@ -15,7 +15,8 @@ import org.traccar.client.Accuracy
 import org.traccar.client.Config
 import org.traccar.client.LocationConfig
 import org.traccar.client.NotificationConfig
-import org.traccar.client.Tracker
+import org.traccar.client.sharedTracker
+import org.traccar.client.startTracking
 
 class TraccarClientSdkPlugin :
     FlutterPlugin,
@@ -36,30 +37,40 @@ class TraccarClientSdkPlugin :
             "start" -> {
                 val config = parseConfig(call.arguments as Map<*, *>)
                 scope.launch {
-                    result.success(Tracker.shared(context).start(context, config))
+                    result.success(sharedTracker().startTracking(context, config))
                 }
             }
             "stop" -> {
-                Tracker.shared(context).stop(context)
-                result.success(null)
+                scope.launch {
+                    sharedTracker().stop()
+                    result.success(null)
+                }
             }
             "requestPosition" -> {
                 val config = parseConfig(call.arguments as Map<*, *>)
-                Tracker.shared(context).requestPosition(context, config)
-                result.success(null)
+                scope.launch {
+                    sharedTracker().requestPosition(config)
+                    result.success(null)
+                }
             }
             "isTracking" -> {
-                result.success(Tracker.shared(context).isTracking)
+                scope.launch {
+                    result.success(sharedTracker().isTracking.value)
+                }
             }
             "getLogs" -> {
-                val entries = Tracker.shared(context).getLogs().map {
-                    mapOf("time" to it.time, "message" to it.message)
+                scope.launch {
+                    val entries = sharedTracker().getLogs().map {
+                        mapOf("time" to it.time, "message" to it.message)
+                    }
+                    result.success(entries)
                 }
-                result.success(entries)
             }
             "clearLogs" -> {
-                Tracker.shared(context).clearLogs()
-                result.success(null)
+                scope.launch {
+                    sharedTracker().clearLogs()
+                    result.success(null)
+                }
             }
             else -> result.notImplemented()
         }

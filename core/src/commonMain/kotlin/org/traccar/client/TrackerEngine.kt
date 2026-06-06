@@ -1,6 +1,8 @@
 package org.traccar.client
 
-import io.ktor.client.HttpClient
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,8 +23,8 @@ class TrackerEngine(
     private val network: NetworkMonitor,
     private val filter: PositionFilter,
     private val buffer: Boolean = true,
-    private val initialBackoffMs: Long = 5_000,
-    private val maxBackoffMs: Long = 5 * 60_000,
+    private val initialBackoff: Duration = 5.seconds,
+    private val maxBackoff: Duration = 5.minutes,
 ) {
     private var scope: CoroutineScope? = null
     private val wakeUp = Channel<Unit>(Channel.CONFLATED)
@@ -54,7 +56,7 @@ class TrackerEngine(
     }
 
     private suspend fun syncLoop() {
-        var backoff = initialBackoffMs
+        var backoff = initialBackoff
         while (currentCoroutineContext().isActive) {
             val pending = queue.peek()
             when {
@@ -65,28 +67,23 @@ class TrackerEngine(
                 }
                 uploader.upload(pending) -> {
                     queue.removeFirst()
-                    backoff = initialBackoffMs
+                    backoff = initialBackoff
                 }
                 else -> {
-                    Log.log("Upload failed, retrying in ${backoff}ms")
+                    Log.log("Upload failed, retrying in $backoff")
                     delay(backoff)
-                    backoff = (backoff * 2).coerceAtMost(maxBackoffMs)
+                    backoff = (backoff * 2).coerceAtMost(maxBackoff)
                 }
             }
         }
     }
 
     companion object {
-        fun oneShotUpload(
-            provider: PositionProvider,
-            config: Config,
-            httpClient: HttpClient,
-        ) {
-            Log.log("Request position ${config.serverUrl} ${config.deviceId}")
-            val uploader = HttpUploader(config, httpClient)
+        fun oneShotUpload(provider: PositionProvider, uploader: Uploader) {
+            Log.log("Request position")
             CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
                 try {
-                    val position = withTimeoutOrNull(30_000) {
+                    val position = withTimeoutOrNull(30.seconds) {
                         provider.positions().first()
                     }
                     if (position != null) {
@@ -96,8 +93,6 @@ class TrackerEngine(
                     }
                 } catch (e: Throwable) {
                     Log.log("Request position failed: ${e.message}")
-                } finally {
-                    httpClient.close()
                 }
             }
         }

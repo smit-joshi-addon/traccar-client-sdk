@@ -13,9 +13,11 @@
         object:nil
         queue:[NSOperationQueue mainQueue]
         usingBlock:^(NSNotification *note) {
-            if (note.userInfo[UIApplicationLaunchOptionsLocationKey] != nil) {
-                [TCSDKTracker.shared resume];
-            }
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                [TCSDKTrackerKt sharedTrackerWithCompletionHandler:^(TCSDKTracker *tracker, NSError *error) {
+                    [tracker resumeWithCompletionHandler:^(NSError *resumeError) {}];
+                }];
+            });
         }];
 }
 

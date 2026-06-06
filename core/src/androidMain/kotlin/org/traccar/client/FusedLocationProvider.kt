@@ -22,6 +22,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -179,7 +180,7 @@ class FusedLocationProvider(
     private fun onStillEnter() {
         stopTimeoutJob?.cancel()
         stopTimeoutJob = scope?.launch {
-            delay(config.stopTimeoutSeconds * 1000L)
+            delay(config.stopTimeoutSeconds.seconds)
             Log.log("Stationary, pausing location updates")
             requestCurrentLocation()
             stopLocationUpdates()
@@ -205,7 +206,7 @@ class FusedLocationProvider(
         heartbeatJob?.cancel()
         heartbeatJob = scope?.launch {
             while (true) {
-                delay(intervalSeconds * 1000L)
+                delay(intervalSeconds.seconds)
                 Log.log("Heartbeat")
                 emit?.invoke(Position(time = System.currentTimeMillis(), battery = readBattery()))
             }

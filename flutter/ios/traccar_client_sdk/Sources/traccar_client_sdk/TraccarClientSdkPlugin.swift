@@ -13,23 +13,43 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
     switch call.method {
     case "start":
       let args = call.arguments as! [String: Any]
-      Tracker.shared.start(config: parseConfig(args))
-      result(true)
+      let config = parseConfig(args)
+      Task {
+        let tracker = try await TrackerKt.sharedTracker()
+        try await tracker.start(config: config)
+        result(true)
+      }
     case "stop":
-      Tracker.shared.stop()
-      result(nil)
+      Task {
+        let tracker = try await TrackerKt.sharedTracker()
+        try await tracker.stop()
+        result(nil)
+      }
     case "requestPosition":
       let args = call.arguments as! [String: Any]
-      Tracker.shared.requestPosition(config: parseConfig(args))
-      result(nil)
+      let config = parseConfig(args)
+      Task {
+        let tracker = try await TrackerKt.sharedTracker()
+        tracker.requestPosition(config: config)
+        result(nil)
+      }
     case "isTracking":
-      result(Tracker.shared.isTracking)
+      Task {
+        let tracker = try await TrackerKt.sharedTracker()
+        result(tracker.isTracking.value)
+      }
     case "getLogs":
-      let entries = Tracker.shared.getLogs().map { ["time": $0.time, "message": $0.message] as [String: Any] }
-      result(entries)
+      Task {
+        let tracker = try await TrackerKt.sharedTracker()
+        let entries = tracker.getLogs().map { ["time": $0.time, "message": $0.message] as [String: Any] }
+        result(entries)
+      }
     case "clearLogs":
-      Tracker.shared.clearLogs()
-      result(nil)
+      Task {
+        let tracker = try await TrackerKt.sharedTracker()
+        tracker.clearLogs()
+        result(nil)
+      }
     default:
       result(FlutterMethodNotImplemented)
     }

@@ -24,7 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.traccar.client.Config
-import org.traccar.client.Tracker
+import org.traccar.client.sharedTracker
+import org.traccar.client.startTracking
 
 class MainActivity : ComponentActivity() {
 
@@ -69,14 +70,13 @@ private fun TrackerScreen() {
             )
             Button(
                 onClick = {
-                    if (isTracking) {
-                        Tracker.shared(activity).stop(activity)
-                        isTracking = false
-                    } else {
-                        scope.launch {
-                            if (Tracker.shared(activity).start(activity, Config(serverUrl, deviceId))) {
-                                isTracking = true
-                            }
+                    scope.launch {
+                        val tracker = sharedTracker()
+                        if (isTracking) {
+                            tracker.stop()
+                            isTracking = false
+                        } else if (tracker.startTracking(activity, Config(serverUrl, deviceId))) {
+                            isTracking = true
                         }
                     }
                 },
