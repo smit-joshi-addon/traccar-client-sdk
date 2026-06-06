@@ -14,44 +14,53 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
     case "start":
       let args = call.arguments as! [String: Any]
       let config = parseConfig(args)
-      Task {
+      runHandler(result) {
         let tracker = try await TrackerKt.sharedTracker()
         try await tracker.start(config: config)
-        result(true)
+        return nil
       }
     case "stop":
-      Task {
+      runHandler(result) {
         let tracker = try await TrackerKt.sharedTracker()
         try await tracker.stop()
-        result(nil)
+        return nil
       }
     case "requestPosition":
       let args = call.arguments as! [String: Any]
       let config = parseConfig(args)
-      Task {
+      runHandler(result) {
         let tracker = try await TrackerKt.sharedTracker()
-        let ok = try await tracker.requestPosition(config: config)
-        result(ok)
+        return try await tracker.requestPosition(config: config)
       }
     case "isTracking":
-      Task {
+      runHandler(result) {
         let tracker = try await TrackerKt.sharedTracker()
-        result(tracker.isTracking.value)
+        return tracker.isTracking.value
       }
     case "getLogs":
-      Task {
+      runHandler(result) {
         let tracker = try await TrackerKt.sharedTracker()
-        let entries = try await tracker.getLogs().map { ["time": $0.time, "message": $0.message] as [String: Any] }
-        result(entries)
+        return try await tracker.getLogs().map { ["time": $0.time, "message": $0.message] as [String: Any] }
       }
     case "clearLogs":
-      Task {
+      runHandler(result) {
         let tracker = try await TrackerKt.sharedTracker()
         try await tracker.clearLogs()
-        result(nil)
+        return nil
       }
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func runHandler(_ result: @escaping FlutterResult, block: @escaping () async throws -> Any?) {
+    Task {
+      do {
+        let value = try await block()
+        result(value)
+      } catch {
+        result(FlutterError(code: String(describing: type(of: error)), message: error.localizedDescription, details: nil))
+      }
     }
   }
 

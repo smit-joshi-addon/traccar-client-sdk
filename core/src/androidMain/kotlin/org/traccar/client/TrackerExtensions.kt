@@ -10,15 +10,14 @@ import androidx.core.content.getSystemService
 private const val PREFERENCES_NAME = "traccar-client-sdk"
 private const val BATTERY_PROMPTED_KEY = "battery-prompted"
 
-suspend fun Tracker.startTracking(context: Context, config: Config): Boolean {
+suspend fun Tracker.startTracking(context: Context, config: Config) {
     TrackerService.ensureNotificationChannel(context)
     if (!ensurePermissions(context)) {
         Log.log("Permissions denied")
-        return false
+        throw IllegalStateException("Location permission denied")
     }
     promptBatteryOptimization(context)
     start(config)
-    return true
 }
 
 private fun promptBatteryOptimization(context: Context) {

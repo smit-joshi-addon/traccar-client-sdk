@@ -36,9 +36,13 @@ class TrackerService : Service() {
 
         serviceScope.launch {
             val tracker = sharedTracker()
-            val config = tracker.loadConfig()
-            if (config == null || !tracker.isTracking.value) {
+            if (!tracker.isTracking.value) {
                 Log.log("Tracking not enabled, stopping service")
+                stopSelf()
+                return@launch
+            }
+            val config = tracker.loadConfig() ?: run {
+                Log.log("No saved config, stopping service")
                 stopSelf()
                 return@launch
             }

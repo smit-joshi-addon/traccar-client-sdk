@@ -34,42 +34,28 @@ class TraccarClientSdkPlugin :
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
-            "start" -> {
-                val config = parseConfig(call.arguments as Map<*, *>)
-                scope.launch {
-                    result.success(sharedTracker().startTracking(context, config))
+            "start" -> scope.launchHandler(result) {
+                sharedTracker().startTracking(context, parseConfig(call.arguments as Map<*, *>))
+                null
+            }
+            "stop" -> scope.launchHandler(result) {
+                sharedTracker().stop()
+                null
+            }
+            "requestPosition" -> scope.launchHandler(result) {
+                sharedTracker().requestPosition(parseConfig(call.arguments as Map<*, *>))
+            }
+            "isTracking" -> scope.launchHandler(result) {
+                sharedTracker().isTracking.value
+            }
+            "getLogs" -> scope.launchHandler(result) {
+                sharedTracker().getLogs().map {
+                    mapOf("time" to it.time, "message" to it.message)
                 }
             }
-            "stop" -> {
-                scope.launch {
-                    sharedTracker().stop()
-                    result.success(null)
-                }
-            }
-            "requestPosition" -> {
-                val config = parseConfig(call.arguments as Map<*, *>)
-                scope.launch {
-                    result.success(sharedTracker().requestPosition(config))
-                }
-            }
-            "isTracking" -> {
-                scope.launch {
-                    result.success(sharedTracker().isTracking.value)
-                }
-            }
-            "getLogs" -> {
-                scope.launch {
-                    val entries = sharedTracker().getLogs().map {
-                        mapOf("time" to it.time, "message" to it.message)
-                    }
-                    result.success(entries)
-                }
-            }
-            "clearLogs" -> {
-                scope.launch {
-                    sharedTracker().clearLogs()
-                    result.success(null)
-                }
+            "clearLogs" -> scope.launchHandler(result) {
+                sharedTracker().clearLogs()
+                null
             }
             else -> result.notImplemented()
         }
@@ -78,6 +64,16 @@ class TraccarClientSdkPlugin :
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
         scope.cancel()
+    }
+
+    private fun CoroutineScope.launchHandler(result: Result, block: suspend () -> Any?) {
+        launch {
+            try {
+                result.success(block())
+            } catch (e: Throwable) {
+                result.error(e::class.simpleName ?: "error", e.message, null)
+            }
+        }
     }
 
     private fun parseConfig(args: Map<*, *>): Config {

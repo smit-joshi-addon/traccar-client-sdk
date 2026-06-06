@@ -66,7 +66,7 @@ class Tracker internal constructor(
         return uploader.upload(position)
     }
 
-    suspend fun loadConfig(): Config? = configStore.load()
+    internal suspend fun loadConfig(): Config? = configStore.load()
 
     suspend fun getLogs(): List<LogEntry> = Log.store?.all() ?: emptyList()
 

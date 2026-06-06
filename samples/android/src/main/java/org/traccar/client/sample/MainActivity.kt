@@ -75,8 +75,12 @@ private fun TrackerScreen() {
                         if (isTracking) {
                             tracker.stop()
                             isTracking = false
-                        } else if (tracker.startTracking(activity, Config(serverUrl, deviceId))) {
-                            isTracking = true
+                        } else {
+                            try {
+                                tracker.startTracking(activity, Config(serverUrl, deviceId))
+                                isTracking = true
+                            } catch (_: IllegalStateException) {
+                            }
                         }
                     }
                 },
