@@ -39,6 +39,7 @@ import platform.darwin.NSObject
 
 class IosLocationProvider(
     config: LocationConfig,
+    private val stateStore: StateStore,
 ) : CallbackPositionProvider() {
 
     private val config: LocationConfig = config.effective
@@ -117,9 +118,15 @@ class IosLocationProvider(
             throw IllegalStateException("Location permission denied")
         }
 
-        manager.startUpdatingLocation()
         manager.startMonitoringSignificantLocationChanges()
         locationManager = manager
+
+        if (config.stopDetection && stateStore.state.value.paused) {
+            Log.log("Restoring stationary state")
+            paused = true
+        } else {
+            manager.startUpdatingLocation()
+        }
 
         if (config.stopDetection) {
             startMotionMonitoring()
@@ -221,6 +228,7 @@ class IosLocationProvider(
         manager.startMonitoringForRegion(region)
         paused = true
         Log.log("Stationary, pausing location updates")
+        stateStore.update { it.copy(paused = true) }
     }
 
     private fun exitStationary() {
@@ -231,6 +239,7 @@ class IosLocationProvider(
         paused = false
         manager.startUpdatingLocation()
         Log.log("Moving, resuming location updates")
+        scope?.launch { stateStore.update { it.copy(paused = false) } }
     }
 
     private fun readBattery(): Int? {

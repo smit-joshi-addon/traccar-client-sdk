@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 class FusedLocationProvider(
     context: Context,
     config: LocationConfig,
+    private val stateStore: StateStore,
 ) : BaseLocationProvider(context, config.effective) {
 
     private val locationClient: FusedLocationProviderClient =
@@ -54,10 +55,15 @@ class FusedLocationProvider(
     override suspend fun start(emit: (Position) -> Unit) {
         this.emit = emit
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        startLocationUpdates()
-        requestCurrentLocation()
         if (config.stopDetection) {
             startActivityMonitoring()
+        }
+        if (config.stopDetection && stateStore.state.value.paused) {
+            Log.log("Restoring stationary state")
+            startHeartbeatLoop()
+        } else {
+            startLocationUpdates()
+            requestCurrentLocation()
         }
     }
 
@@ -178,6 +184,7 @@ class FusedLocationProvider(
     }
 
     private fun onStillEnter() {
+        if (locationCallback == null) return
         stopTimeoutJob?.cancel()
         stopTimeoutJob = scope?.launch {
             delay(config.stopTimeoutSeconds.seconds)
@@ -185,6 +192,7 @@ class FusedLocationProvider(
             requestCurrentLocation()
             stopLocationUpdates()
             startHeartbeatLoop()
+            stateStore.update { it.copy(paused = true) }
         }
     }
 
@@ -198,6 +206,7 @@ class FusedLocationProvider(
             startLocationUpdates()
         } catch (_: SecurityException) {
         }
+        scope?.launch { stateStore.update { it.copy(paused = false) } }
     }
 
     private fun startHeartbeatLoop() {

@@ -14,28 +14,33 @@ internal actual suspend fun createTracker(): Tracker = withContext(Dispatchers.I
     val appContext = applicationContext
     val driver = AndroidSqliteDriver(Database.Schema, appContext, "tracker.db")
     Log.store = LogStore(driver)
+    val stateStore = StateStore.create(driver)
     val httpClient = HttpClient(Android)
     val engineBuilder = EngineBuilder(
         queue = DatabaseQueue(driver),
         networkMonitor = AndroidNetworkMonitor(appContext),
-        createProvider = { createLocationProvider(appContext, it) },
+        createProvider = { createLocationProvider(appContext, it, stateStore) },
         createUploader = { HttpUploader(it, httpClient) },
     )
     Tracker(
         configStore = ConfigStore(driver),
-        stateStore = StateStore.create(driver),
+        stateStore = stateStore,
         engineBuilder = engineBuilder,
         onStarted = { TrackerService.start(appContext) },
         onStopped = { TrackerService.stop() },
     )
 }
 
-internal fun createLocationProvider(context: Context, config: LocationConfig): PositionProvider {
+internal fun createLocationProvider(
+    context: Context,
+    config: LocationConfig,
+    stateStore: StateStore,
+): PositionProvider {
     val useFused = GoogleApiAvailability.getInstance()
         .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
     Log.log("Using ${if (useFused) "FusedLocationProvider" else "AndroidLocationProvider"}")
     return if (useFused) {
-        FusedLocationProvider(context, config)
+        FusedLocationProvider(context, config, stateStore)
     } else {
         AndroidLocationProvider(context, config)
     }

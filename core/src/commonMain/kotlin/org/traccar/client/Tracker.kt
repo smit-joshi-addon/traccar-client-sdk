@@ -41,7 +41,7 @@ class Tracker internal constructor(
 
     suspend fun stop() = lifecycleMutex.withLock {
         Log.log("Tracker stop")
-        stateStore.update { it.copy(enabled = false) }
+        stateStore.update { it.copy(enabled = false, paused = false) }
         onStopped()
     }
 
