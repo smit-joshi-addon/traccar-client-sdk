@@ -1,11 +1,15 @@
 package org.traccar.client
 
 import app.cash.sqldelight.db.SqlDriver
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.traccar.client.db.Database
@@ -17,11 +21,11 @@ class StateStore internal constructor(
 ) {
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<State> = _state.asStateFlow()
+    private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    suspend fun update(transform: (State) -> State) {
-        val next = transform(_state.value)
-        _state.value = next
-        withContext(Dispatchers.IO) {
+    fun update(transform: (State) -> State) {
+        val next = _state.updateAndGet(transform)
+        persistScope.launch {
             queries.saveState(Json.encodeToString(next))
         }
     }

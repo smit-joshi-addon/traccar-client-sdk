@@ -49,7 +49,6 @@ class IosLocationProvider(
     private var lastLocation: CLLocation? = null
     private var stopTimeoutJob: Job? = null
     private var scope: CoroutineScope? = null
-    private var paused = false
     private var pendingLocation: CompletableDeferred<CLLocation>? = null
 
     override suspend fun start(emit: (Position) -> Unit) = withContext(Dispatchers.Main) {
@@ -118,7 +117,6 @@ class IosLocationProvider(
 
         if (config.stopDetection && stateStore.state.value.paused) {
             Log.log("Restoring stationary state")
-            paused = true
             IosBackgroundHeartbeat.schedule(config.heartbeatIntervalSeconds)
         } else {
             manager.startUpdatingLocation()
@@ -149,7 +147,6 @@ class IosLocationProvider(
         scope = null
         emit = null
         lastLocation = null
-        paused = false
     }
 
     private fun startMotionMonitoring() {
@@ -185,7 +182,7 @@ class IosLocationProvider(
     }
 
     private fun onStationaryDetected() {
-        if (paused) return
+        if (stateStore.state.value.paused) return
         if (stopTimeoutJob?.isActive == true) return
         stopTimeoutJob = scope?.launch {
             delay(config.stopTimeoutSeconds.seconds)
@@ -196,9 +193,7 @@ class IosLocationProvider(
     private fun onMovingDetected() {
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
-        if (paused) {
-            exitStationary()
-        }
+        exitStationary()
     }
 
     @OptIn(ExperimentalForeignApi::class)
@@ -223,22 +218,21 @@ class IosLocationProvider(
         region.notifyOnExit = true
         region.notifyOnEntry = false
         manager.startMonitoringForRegion(region)
-        paused = true
         Log.log("Stationary, pausing location updates")
         IosBackgroundHeartbeat.schedule(config.heartbeatIntervalSeconds)
         stateStore.update { it.copy(paused = true) }
     }
 
     private fun exitStationary() {
+        if (!stateStore.state.value.paused) return
         val manager = locationManager ?: return
+        stateStore.update { it.copy(paused = false) }
         manager.monitoredRegions.forEach { region ->
             (region as? CLRegion)?.let { manager.stopMonitoringForRegion(it) }
         }
         IosBackgroundHeartbeat.cancel()
-        paused = false
         manager.startUpdatingLocation()
         Log.log("Moving, resuming location updates")
-        scope?.launch { stateStore.update { it.copy(paused = false) } }
     }
 
     private companion object {

@@ -40,7 +40,7 @@ class LocationFilter(
         return false
     }
 
-    private suspend fun persistAccepted(position: Position) {
+    private fun persistAccepted(position: Position) {
         lastAccepted = position
         stateStore.update { it.copy(lastAcceptedLocation = position) }
     }

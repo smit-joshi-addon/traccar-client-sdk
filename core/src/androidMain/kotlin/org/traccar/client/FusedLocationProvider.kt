@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.location.Location
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.ActivityRecognition
@@ -16,12 +17,17 @@ import com.google.android.gms.location.ActivityTransitionResult
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.Geofence
+import com.google.android.gms.location.GeofencingClient
+import com.google.android.gms.location.GeofencingEvent
+import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +36,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 @SuppressLint("MissingPermission")
 class FusedLocationProvider(
@@ -42,10 +49,13 @@ class FusedLocationProvider(
         LocationServices.getFusedLocationProviderClient(appContext)
     private val activityClient: ActivityRecognitionClient =
         ActivityRecognition.getClient(appContext)
+    private val geofencingClient: GeofencingClient =
+        LocationServices.getGeofencingClient(appContext)
 
     private var emit: ((Position) -> Unit)? = null
     private var locationCallback: LocationCallback? = null
     private var activityPendingIntent: PendingIntent? = null
+    private var geofencePendingIntent: PendingIntent? = null
     private var transitionReceiver: BroadcastReceiver? = null
     private var stopTimeoutJob: Job? = null
     private var heartbeatJob: Job? = null
@@ -63,7 +73,7 @@ class FusedLocationProvider(
             startHeartbeatLoop()
         } else {
             startLocationUpdates()
-            requestCurrentLocation()
+            scope?.launch { awaitCurrentLocation() }
         }
     }
 
@@ -75,6 +85,7 @@ class FusedLocationProvider(
         heartbeatJob?.cancel()
         heartbeatJob = null
         stopLocationUpdates()
+        removeStationaryGeofence()
         activityPendingIntent?.let { activityClient.removeActivityTransitionUpdates(it) }
         activityPendingIntent = null
         transitionReceiver?.let { appContext.unregisterReceiver(it) }
@@ -106,16 +117,29 @@ class FusedLocationProvider(
         locationCallback = null
     }
 
-    private fun requestCurrentLocation() {
+    private suspend fun awaitCurrentLocation(): Location? {
+        currentLocationToken?.cancel()
         val token = CancellationTokenSource()
         currentLocationToken = token
         val request = CurrentLocationRequest.Builder()
             .setPriority(config.accuracy.toFusedPriority())
             .build()
-        locationClient.getCurrentLocation(request, token.token)
-            .addOnSuccessListener { location ->
-                location?.let { emit?.invoke(it.toPosition()) }
+        val location = try {
+            suspendCancellableCoroutine<Location?> { continuation ->
+                locationClient.getCurrentLocation(request, token.token)
+                    .addOnSuccessListener { result ->
+                        if (continuation.isActive) continuation.resume(result)
+                    }
+                    .addOnFailureListener {
+                        if (continuation.isActive) continuation.resume(null)
+                    }
+                continuation.invokeOnCancellation { token.cancel() }
             }
+        } finally {
+            if (currentLocationToken === token) currentLocationToken = null
+        }
+        location?.let { emit?.invoke(it.toPosition()) }
+        return location
     }
 
     private fun startActivityMonitoring() {
@@ -130,15 +154,20 @@ class FusedLocationProvider(
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action == ACTIVITY_TRANSITION_ACTION) {
-                    handleTransition(intent)
+                when (intent.action) {
+                    ACTIVITY_TRANSITION_ACTION -> handleTransition(intent)
+                    GEOFENCE_TRANSITION_ACTION -> handleGeofenceTransition(intent)
                 }
             }
+        }
+        val filter = IntentFilter().apply {
+            addAction(ACTIVITY_TRANSITION_ACTION)
+            addAction(GEOFENCE_TRANSITION_ACTION)
         }
         ContextCompat.registerReceiver(
             appContext,
             receiver,
-            IntentFilter(ACTIVITY_TRANSITION_ACTION),
+            filter,
             ContextCompat.RECEIVER_EXPORTED,
         )
         transitionReceiver = receiver
@@ -184,29 +213,78 @@ class FusedLocationProvider(
     }
 
     private fun onStillEnter() {
-        if (locationCallback == null) return
+        if (stateStore.state.value.paused) return
         stopTimeoutJob?.cancel()
         stopTimeoutJob = scope?.launch {
             delay(config.stopTimeoutSeconds.seconds)
             Log.log("Stationary, pausing location updates")
-            requestCurrentLocation()
+            val location = awaitCurrentLocation()
             stopLocationUpdates()
             startHeartbeatLoop()
             stateStore.update { it.copy(paused = true) }
+            location?.let { registerStationaryGeofence(it.latitude, it.longitude) }
         }
     }
 
     private fun onStillExit() {
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
+        exitStationary()
+    }
+
+    private fun exitStationary() {
+        if (!stateStore.state.value.paused) return
+        stateStore.update { it.copy(paused = false) }
         heartbeatJob?.cancel()
         heartbeatJob = null
+        removeStationaryGeofence()
         Log.log("Moving, resuming location updates")
         try {
             startLocationUpdates()
         } catch (_: SecurityException) {
         }
-        scope?.launch { stateStore.update { it.copy(paused = false) } }
+    }
+
+    private fun registerStationaryGeofence(latitude: Double, longitude: Double) {
+        val geofence = Geofence.Builder()
+            .setRequestId(STATIONARY_GEOFENCE_ID)
+            .setCircularRegion(latitude, longitude, config.stationaryRadiusMeters.toFloat())
+            .setExpirationDuration(Geofence.NEVER_EXPIRE)
+            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT)
+            .build()
+        val request = GeofencingRequest.Builder()
+            .setInitialTrigger(0)
+            .addGeofence(geofence)
+            .build()
+        val geofenceIntent = Intent(GEOFENCE_TRANSITION_ACTION).setPackage(appContext.packageName)
+        val pendingIntent = PendingIntent.getBroadcast(
+            appContext,
+            0,
+            geofenceIntent,
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        geofencePendingIntent = pendingIntent
+        geofencingClient.addGeofences(request, pendingIntent)
+            .addOnSuccessListener { Log.log("Stationary geofence registered") }
+            .addOnFailureListener { Log.log("Stationary geofence failed: $it") }
+    }
+
+    private fun removeStationaryGeofence() {
+        val pendingIntent = geofencePendingIntent ?: return
+        geofencingClient.removeGeofences(pendingIntent)
+        geofencePendingIntent = null
+    }
+
+    private fun handleGeofenceTransition(intent: Intent) {
+        val event = GeofencingEvent.fromIntent(intent) ?: return
+        if (event.hasError()) {
+            Log.log("Geofence error: ${event.errorCode}")
+            return
+        }
+        if (event.geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT) {
+            Log.log("Stationary geofence exit")
+            exitStationary()
+        }
     }
 
     private fun startHeartbeatLoop() {
@@ -224,6 +302,8 @@ class FusedLocationProvider(
 
     private companion object {
         const val ACTIVITY_TRANSITION_ACTION = "org.traccar.client.ACTIVITY_TRANSITION"
+        const val GEOFENCE_TRANSITION_ACTION = "org.traccar.client.GEOFENCE_TRANSITION"
+        const val STATIONARY_GEOFENCE_ID = "traccar.stationary"
     }
 }
 
