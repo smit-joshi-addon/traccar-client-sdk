@@ -217,7 +217,7 @@ class FusedLocationProvider(
             while (true) {
                 delay(intervalSeconds.seconds)
                 Log.log("Heartbeat")
-                emit?.invoke(Position(time = System.currentTimeMillis(), battery = readBattery()))
+                emit?.invoke(Position(time = System.currentTimeMillis(), battery = readBattery(), charging = readCharging()))
             }
         }
     }

@@ -18,6 +18,8 @@ abstract class BaseLocationProvider(
         return if (level in 0..100) level else null
     }
 
+    protected fun readCharging(): Boolean? = batteryManager?.isCharging
+
     protected fun Location.toPosition(): Position = Position(
         latitude = latitude,
         longitude = longitude,
@@ -27,5 +29,6 @@ abstract class BaseLocationProvider(
         speed = if (hasSpeed()) speed.toDouble() else null,
         bearing = if (hasBearing()) bearing.toDouble() else null,
         battery = readBattery(),
+        charging = readCharging(),
     )
 }

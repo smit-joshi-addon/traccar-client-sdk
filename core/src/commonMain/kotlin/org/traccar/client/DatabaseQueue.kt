@@ -25,6 +25,7 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
                     speed = position.speed,
                     bearing = position.bearing,
                     battery = position.battery?.toLong(),
+                    charging = position.charging,
                 )
             }
         }
@@ -42,6 +43,7 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
                     speed = row.speed,
                     bearing = row.bearing,
                     battery = row.battery?.toInt(),
+                    charging = row.charging,
                 )
             }
         }

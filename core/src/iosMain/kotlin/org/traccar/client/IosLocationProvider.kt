@@ -35,6 +35,7 @@ import platform.Foundation.NSError
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIDevice
+import platform.UIKit.UIDeviceBatteryState
 import platform.darwin.NSObject
 
 class IosLocationProvider(
@@ -67,7 +68,7 @@ class IosLocationProvider(
                 didUpdateLocations.forEach { value ->
                     val location = value as CLLocation
                     lastLocation = location
-                    emit(location.toPosition(readBattery()))
+                    emit(location.toPosition(readBattery(), readCharging()))
                     pendingLocation?.complete(location)
                 }
             }
@@ -247,6 +248,13 @@ class IosLocationProvider(
         return if (level >= 0f) (level * 100).toInt() else null
     }
 
+    private fun readCharging(): Boolean? = when (UIDevice.currentDevice.batteryState) {
+        UIDeviceBatteryState.UIDeviceBatteryStateCharging,
+        UIDeviceBatteryState.UIDeviceBatteryStateFull -> true
+        UIDeviceBatteryState.UIDeviceBatteryStateUnplugged -> false
+        else -> null
+    }
+
     private companion object {
         const val STATIONARY_REGION_ID = "traccar.stationary"
     }
@@ -260,7 +268,7 @@ private fun Accuracy.toIosAccuracy(): Double = when (this) {
 }
 
 @OptIn(ExperimentalForeignApi::class)
-private fun CLLocation.toPosition(battery: Int?): Position {
+private fun CLLocation.toPosition(battery: Int?, charging: Boolean?): Position {
     val (latitude, longitude) = coordinate.useContents { latitude to longitude }
     val timestamp: NSDate = timestamp
     return Position(
@@ -272,5 +280,6 @@ private fun CLLocation.toPosition(battery: Int?): Position {
         speed = if (speed >= 0) speed else null,
         bearing = if (course >= 0) course else null,
         battery = battery,
+        charging = charging,
     )
 }
