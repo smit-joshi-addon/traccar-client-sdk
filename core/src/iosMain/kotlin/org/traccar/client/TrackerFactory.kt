@@ -10,19 +10,28 @@ import org.traccar.client.db.Database
 
 internal actual suspend fun createTracker(): Tracker = withContext(Dispatchers.IO) {
     val driver = NativeSqliteDriver(Database.Schema, "tracker.db")
+    enableBatteryMonitoring()
     Log.store = LogStore(driver)
     val stateStore = StateStore.create(driver)
     val httpClient = HttpClient(Darwin)
+    val queue = DatabaseQueue(driver)
+    val configStore = ConfigStore(driver)
+    val createUploader: (Config) -> Uploader = { HttpUploader(it, httpClient) }
     val engineBuilder = EngineBuilder(
-        queue = DatabaseQueue(driver),
+        queue = queue,
         stateStore = stateStore,
         networkMonitor = IosNetworkMonitor(),
         createProvider = { IosLocationProvider(it, stateStore) },
-        createUploader = { HttpUploader(it, httpClient) },
+        createUploader = createUploader,
+    )
+    IosBackgroundHeartbeat.bind(
+        queue = queue,
+        configProvider = { configStore.load() },
+        createUploader = createUploader,
     )
     var engine: TrackerEngine? = null
     Tracker(
-        configStore = ConfigStore(driver),
+        configStore = configStore,
         stateStore = stateStore,
         engineBuilder = engineBuilder,
         onStarted = { config ->

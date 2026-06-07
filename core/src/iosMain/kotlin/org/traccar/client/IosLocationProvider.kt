@@ -34,8 +34,6 @@ import platform.Foundation.NSDate
 import platform.Foundation.NSError
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.timeIntervalSince1970
-import platform.UIKit.UIDevice
-import platform.UIKit.UIDeviceBatteryState
 import platform.darwin.NSObject
 
 class IosLocationProvider(
@@ -53,10 +51,6 @@ class IosLocationProvider(
     private var scope: CoroutineScope? = null
     private var paused = false
     private var pendingLocation: CompletableDeferred<CLLocation>? = null
-
-    init {
-        UIDevice.currentDevice.batteryMonitoringEnabled = true
-    }
 
     override suspend fun start(emit: (Position) -> Unit) = withContext(Dispatchers.Main) {
         this@IosLocationProvider.emit = emit
@@ -125,6 +119,7 @@ class IosLocationProvider(
         if (config.stopDetection && stateStore.state.value.paused) {
             Log.log("Restoring stationary state")
             paused = true
+            IosBackgroundHeartbeat.schedule(config.heartbeatIntervalSeconds)
         } else {
             manager.startUpdatingLocation()
         }
@@ -137,6 +132,7 @@ class IosLocationProvider(
     override fun stop() {
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
+        IosBackgroundHeartbeat.cancel()
         pendingLocation?.cancel()
         pendingLocation = null
         activityManager?.stopActivityUpdates()
@@ -229,6 +225,7 @@ class IosLocationProvider(
         manager.startMonitoringForRegion(region)
         paused = true
         Log.log("Stationary, pausing location updates")
+        IosBackgroundHeartbeat.schedule(config.heartbeatIntervalSeconds)
         stateStore.update { it.copy(paused = true) }
     }
 
@@ -237,22 +234,11 @@ class IosLocationProvider(
         manager.monitoredRegions.forEach { region ->
             (region as? CLRegion)?.let { manager.stopMonitoringForRegion(it) }
         }
+        IosBackgroundHeartbeat.cancel()
         paused = false
         manager.startUpdatingLocation()
         Log.log("Moving, resuming location updates")
         scope?.launch { stateStore.update { it.copy(paused = false) } }
-    }
-
-    private fun readBattery(): Int? {
-        val level = UIDevice.currentDevice.batteryLevel
-        return if (level >= 0f) (level * 100).toInt() else null
-    }
-
-    private fun readCharging(): Boolean? = when (UIDevice.currentDevice.batteryState) {
-        UIDeviceBatteryState.UIDeviceBatteryStateCharging,
-        UIDeviceBatteryState.UIDeviceBatteryStateFull -> true
-        UIDeviceBatteryState.UIDeviceBatteryStateUnplugged -> false
-        else -> null
     }
 
     private companion object {

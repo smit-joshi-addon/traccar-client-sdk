@@ -213,6 +213,17 @@ Add both:
 
 And enable the **Location updates** background mode in your target capabilities.
 
+If you use `heartbeatIntervalSeconds`, also add `fetch` to `UIBackgroundModes` and register the background task identifier:
+
+```xml
+<key>BGTaskSchedulerPermittedIdentifiers</key>
+<array>
+    <string>org.traccar.client.heartbeat</string>
+</array>
+```
+
+Note: iOS schedules `BGAppRefreshTask` at its discretion — the interval is a "no sooner than" hint, not a guarantee.
+
 ## Diagnostic log
 
 `getLogs()` returns the SDK's internal log entries, oldest first. Each `LogEntry` carries `time` (epoch ms) and `message`. Useful for surfacing tracker state in a debug screen. `clearLogs()` empties the store.

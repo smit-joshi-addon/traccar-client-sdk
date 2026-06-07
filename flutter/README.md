@@ -44,6 +44,8 @@ On iOS, add these keys to your app's `Info.plist`:
 
 and enable the **Location updates** background mode in your target capabilities.
 
+If you set `heartbeatIntervalSeconds`, also add `fetch` to `UIBackgroundModes` and add `org.traccar.client.heartbeat` to `BGTaskSchedulerPermittedIdentifiers`. iOS schedules the wake at its discretion.
+
 ## License
 
 Apache License 2.0 - see [LICENSE](LICENSE).
