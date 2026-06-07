@@ -15,18 +15,28 @@ internal actual suspend fun createTracker(): Tracker = withContext(Dispatchers.I
     val driver = AndroidSqliteDriver(Database.Schema, appContext, "tracker.db")
     Log.store = LogStore(driver)
     val stateStore = StateStore.create(driver)
+    val configStore = ConfigStore(driver)
+    val queue = DatabaseQueue(driver)
+    val networkMonitor = AndroidNetworkMonitor(appContext)
     val httpClient = HttpClient(Android)
-    val engineBuilder = EngineBuilder(
-        queue = DatabaseQueue(driver),
+    val createProvider: (LocationConfig) -> PositionProvider = {
+        createLocationProvider(appContext, it, stateStore)
+    }
+    val createUploader: (Config) -> Uploader = { HttpUploader(it, httpClient) }
+    val engine = TrackerEngine(
+        configStore = configStore,
         stateStore = stateStore,
-        networkMonitor = AndroidNetworkMonitor(appContext),
-        createProvider = { createLocationProvider(appContext, it, stateStore) },
-        createUploader = { HttpUploader(it, httpClient) },
+        queue = queue,
+        network = networkMonitor,
+        createProvider = createProvider,
+        createUploader = createUploader,
     )
     Tracker(
-        configStore = ConfigStore(driver),
+        configStore = configStore,
         stateStore = stateStore,
-        engineBuilder = engineBuilder,
+        engine = engine,
+        createProvider = createProvider,
+        createUploader = createUploader,
         onStarted = { TrackerService.start(appContext) },
         onStopped = { TrackerService.stop() },
     )

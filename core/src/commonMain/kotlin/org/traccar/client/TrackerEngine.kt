@@ -14,24 +14,54 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
-class TrackerEngine(
-    private val provider: PositionProvider,
-    private val uploader: Uploader,
+class TrackerEngine internal constructor(
+    private val configStore: ConfigStore,
+    private val stateStore: StateStore,
     private val queue: PositionQueue,
     private val network: NetworkMonitor,
-    private val filter: PositionFilter,
-    private val buffer: Boolean = true,
+    private val createProvider: (LocationConfig) -> PositionProvider,
+    private val createUploader: (Config) -> Uploader,
     private val initialBackoff: Duration = 5.seconds,
     private val maxBackoff: Duration = 5.minutes,
 ) {
-    private var scope: CoroutineScope? = null
+    private val mutex = Mutex()
+    private var runningScope: CoroutineScope? = null
     private val wakeUp = Channel<Unit>(Channel.CONFLATED)
 
-    fun start() {
-        if (scope != null) return
-        Log.log("Engine started")
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default).apply {
+    suspend fun handle(signal: Signal) = mutex.withLock {
+        when (signal) {
+            Signal.Restore -> applyRestore()
+            Signal.StationaryEnter,
+            Signal.StationaryExit,
+            Signal.HeartbeatTick -> Log.log("Signal ${signal::class.simpleName} not yet handled")
+        }
+    }
+
+    private suspend fun applyRestore() {
+        val state = stateStore.state.value
+        if (!state.enabled) {
+            stopRunning()
+            return
+        }
+        val config = configStore.load() ?: run {
+            Log.log("No saved config; engine staying down")
+            stopRunning()
+            return
+        }
+        startRunning(config)
+    }
+
+    private fun startRunning(config: Config) {
+        if (runningScope != null) return
+        Log.log("Engine running")
+        val provider = createProvider(config.location)
+        val uploader = createUploader(config)
+        val filter = LocationFilter(config.location, stateStore)
+        val buffer = config.buffer
+        runningScope = CoroutineScope(SupervisorJob() + Dispatchers.Default).apply {
             launch {
                 provider.positions()
                     .filter { filter.accept(it) }
@@ -44,17 +74,18 @@ class TrackerEngine(
                         }
                     }
             }
-            launch { syncLoop() }
+            launch { syncLoop(uploader) }
         }
     }
 
-    fun stop() {
+    private fun stopRunning() {
+        if (runningScope == null) return
         Log.log("Engine stopped")
-        scope?.cancel()
-        scope = null
+        runningScope?.cancel()
+        runningScope = null
     }
 
-    private suspend fun syncLoop() {
+    private suspend fun syncLoop(uploader: Uploader) {
         var backoff = initialBackoff
         while (currentCoroutineContext().isActive) {
             val pending = queue.peek()
@@ -76,5 +107,4 @@ class TrackerEngine(
             }
         }
     }
-
 }

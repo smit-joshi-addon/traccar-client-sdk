@@ -20,8 +20,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 class Tracker internal constructor(
     private val configStore: ConfigStore,
     private val stateStore: StateStore,
-    internal val engineBuilder: EngineBuilder,
-    private val onStarted: (Config) -> Unit,
+    internal val engine: TrackerEngine,
+    private val createProvider: (LocationConfig) -> PositionProvider,
+    private val createUploader: (Config) -> Uploader,
+    private val onStarted: () -> Unit,
     private val onStopped: () -> Unit,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -36,26 +38,27 @@ class Tracker internal constructor(
         Log.log("Tracker start ${config.serverUrl} ${config.deviceId}")
         configStore.save(config)
         stateStore.update { it.copy(enabled = true) }
-        onStarted(config)
+        onStarted()
+        engine.handle(Signal.Restore)
     }
 
     suspend fun stop() = lifecycleMutex.withLock {
         Log.log("Tracker stop")
         stateStore.update { it.copy(enabled = false, paused = false) }
+        engine.handle(Signal.Restore)
         onStopped()
     }
 
-    suspend fun resume() = lifecycleMutex.withLock {
-        if (!stateStore.state.value.enabled) return@withLock
-        val config = configStore.load() ?: return@withLock
-        Log.log("Tracker resume")
-        onStarted(config)
+    suspend fun restore() = lifecycleMutex.withLock {
+        Log.log("Tracker restore")
+        if (stateStore.state.value.enabled) onStarted()
+        engine.handle(Signal.Restore)
     }
 
     suspend fun requestPosition(config: Config): Boolean {
         Log.log("Request position ${config.serverUrl} ${config.deviceId}")
-        val provider = engineBuilder.createProvider(config.location.copy(stopDetection = false))
-        val uploader = engineBuilder.createUploader(config)
+        val provider = createProvider(config.location.copy(stopDetection = false))
+        val uploader = createUploader(config)
         val position = withTimeoutOrNull(30.seconds) {
             provider.positions().first()
         }
@@ -73,23 +76,6 @@ class Tracker internal constructor(
     suspend fun clearLogs() {
         Log.store?.clear()
     }
-}
-
-class EngineBuilder internal constructor(
-    private val queue: PositionQueue,
-    private val stateStore: StateStore,
-    private val networkMonitor: NetworkMonitor,
-    internal val createProvider: (LocationConfig) -> PositionProvider,
-    internal val createUploader: (Config) -> Uploader,
-) {
-    fun build(config: Config): TrackerEngine = TrackerEngine(
-        provider = createProvider(config.location),
-        uploader = createUploader(config),
-        queue = queue,
-        network = networkMonitor,
-        filter = LocationFilter(config.location, stateStore),
-        buffer = config.buffer,
-    )
 }
 
 internal expect suspend fun createTracker(): Tracker

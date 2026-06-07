@@ -13,15 +13,18 @@ internal actual suspend fun createTracker(): Tracker = withContext(Dispatchers.I
     enableBatteryMonitoring()
     Log.store = LogStore(driver)
     val stateStore = StateStore.create(driver)
-    val httpClient = HttpClient(Darwin)
-    val queue = DatabaseQueue(driver)
     val configStore = ConfigStore(driver)
+    val queue = DatabaseQueue(driver)
+    val networkMonitor = IosNetworkMonitor()
+    val httpClient = HttpClient(Darwin)
+    val createProvider: (LocationConfig) -> PositionProvider = { IosLocationProvider(it, stateStore) }
     val createUploader: (Config) -> Uploader = { HttpUploader(it, httpClient) }
-    val engineBuilder = EngineBuilder(
-        queue = queue,
+    val engine = TrackerEngine(
+        configStore = configStore,
         stateStore = stateStore,
-        networkMonitor = IosNetworkMonitor(),
-        createProvider = { IosLocationProvider(it, stateStore) },
+        queue = queue,
+        network = networkMonitor,
+        createProvider = createProvider,
         createUploader = createUploader,
     )
     IosBackgroundHeartbeat.bind(
@@ -29,17 +32,13 @@ internal actual suspend fun createTracker(): Tracker = withContext(Dispatchers.I
         configProvider = { configStore.load() },
         createUploader = createUploader,
     )
-    var engine: TrackerEngine? = null
     Tracker(
         configStore = configStore,
         stateStore = stateStore,
-        engineBuilder = engineBuilder,
-        onStarted = { config ->
-            if (engine == null) engine = engineBuilder.build(config).also { it.start() }
-        },
-        onStopped = {
-            engine?.stop()
-            engine = null
-        },
+        engine = engine,
+        createProvider = createProvider,
+        createUploader = createUploader,
+        onStarted = { },
+        onStopped = { },
     )
 }

@@ -21,7 +21,6 @@ import kotlinx.coroutines.launch
 
 class TrackerService : Service() {
 
-    private var engine: TrackerEngine? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -53,18 +52,14 @@ class TrackerService : Service() {
                     ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "traccar:tracker")
                     ?.also { it.acquire() }
             }
-            if (engine == null) {
-                engine = tracker.engineBuilder.build(config).also { it.start() }
-            }
+            tracker.engine.handle(Signal.Restore)
         }
-        return START_REDELIVER_INTENT
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         Log.log("Service destroyed")
         serviceScope.cancel()
-        engine?.stop()
-        engine = null
         wakeLock?.release()
         wakeLock = null
         super.onDestroy()
