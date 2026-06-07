@@ -13,18 +13,20 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
     private val queries = Database(driver).positionQueries
     private val mutex = Mutex()
 
-    override suspend fun enqueue(position: Position) = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            queries.enqueue(
-                latitude = position.latitude,
-                longitude = position.longitude,
-                accuracy = position.accuracy,
-                time = position.time,
-                altitude = position.altitude,
-                speed = position.speed,
-                bearing = position.bearing,
-                battery = position.battery?.toLong(),
-            )
+    override suspend fun enqueue(position: Position) {
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                queries.enqueue(
+                    latitude = position.latitude,
+                    longitude = position.longitude,
+                    accuracy = position.accuracy,
+                    time = position.time,
+                    altitude = position.altitude,
+                    speed = position.speed,
+                    bearing = position.bearing,
+                    battery = position.battery?.toLong(),
+                )
+            }
         }
     }
 
@@ -45,9 +47,11 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
         }
     }
 
-    override suspend fun removeFirst() = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            queries.removeFirst()
+    override suspend fun removeFirst() {
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                queries.removeFirst()
+            }
         }
     }
 }

@@ -91,22 +91,24 @@ class LogEntry {
 class TraccarClientSdk {
   static const MethodChannel _channel = MethodChannel('traccar_client_sdk');
 
-  /// Starts background location tracking with [config]. Returns false if
-  /// required permissions were denied (Android).
-  Future<bool> start(Config config) async {
-    final result = await _channel.invokeMethod<bool>('start', config._toMap());
-    return result ?? false;
-  }
+  /// Starts background location tracking with [config]. Throws a
+  /// [PlatformException] if required permissions were denied or another
+  /// startup error occurred.
+  Future<void> start(Config config) =>
+      _channel.invokeMethod<void>('start', config._toMap());
 
   /// Stops tracking.
   Future<void> stop() => _channel.invokeMethod<void>('stop');
 
-  /// Requests a single position fix and uploads it to the server. Works
-  /// independently of [start] / [stop]; on Android the call must originate
-  /// from a context allowed to receive location (foreground activity or
-  /// high-priority FCM message handler).
-  Future<void> requestPosition(Config config) =>
-      _channel.invokeMethod<void>('requestPosition', config._toMap());
+  /// Requests a single position fix and uploads it to the server. Returns
+  /// whether the upload succeeded. Works independently of [start] / [stop];
+  /// on Android the call must originate from a context allowed to receive
+  /// location (foreground activity or high-priority FCM message handler).
+  Future<bool> requestPosition(Config config) async {
+    final result =
+        await _channel.invokeMethod<bool>('requestPosition', config._toMap());
+    return result ?? false;
+  }
 
   /// Returns whether tracking is currently active.
   Future<bool> isTracking() async {
