@@ -1,5 +1,6 @@
 package org.traccar.client
 
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +41,7 @@ object IosBackgroundHeartbeat {
         this.createUploader = createUploader
     }
 
+    @OptIn(ExperimentalForeignApi::class)
     internal fun schedule(intervalSeconds: Int) {
         if (intervalSeconds <= 0) return
         val request = BGAppRefreshTaskRequest(identifier = TASK_IDENTIFIER)

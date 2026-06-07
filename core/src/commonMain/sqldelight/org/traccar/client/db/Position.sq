@@ -8,7 +8,7 @@ CREATE TABLE Position (
     speed REAL,
     bearing REAL,
     battery INTEGER,
-    charging INTEGER AS Boolean
+    charging INTEGER
 );
 
 enqueue:
