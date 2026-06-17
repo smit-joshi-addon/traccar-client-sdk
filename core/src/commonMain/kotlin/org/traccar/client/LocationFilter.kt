@@ -15,10 +15,18 @@ class LocationFilter(
 
     private val locationConfig: LocationConfig = config.location
     private var lastAccepted: Position? = stateStore.state.value.lastAcceptedLocation
+    private var lastProcessedPaused: Boolean = stateStore.state.value.paused
 
     override suspend fun process(position: Position): Position? {
         if (position.latitude == null || position.longitude == null) {
             Log.log("Heartbeat accepted")
+            return position
+        }
+        val currentPaused = stateStore.state.value.paused
+        if (currentPaused != lastProcessedPaused) {
+            lastProcessedPaused = currentPaused
+            persistAccepted(position)
+            Log.log("Transition accepted ${position.latitude},${position.longitude}")
             return position
         }
         val previous = lastAccepted
