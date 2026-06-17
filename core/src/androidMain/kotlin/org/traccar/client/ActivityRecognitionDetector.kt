@@ -5,15 +5,16 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import androidx.core.content.ContextCompat
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.location.ActivityTransitionResult
 import com.google.android.gms.location.DetectedActivity
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,10 +36,12 @@ class ActivityRecognitionDetector(
     override val signals = MutableSharedFlow<Signal>(extraBufferCapacity = 8)
 
     private var pendingIntent: PendingIntent? = null
-    private var receiver: BroadcastReceiver? = null
     private var stopTimeoutJob: Job? = null
 
     init {
+        scope.launch {
+            ActivityRecognitionReceiver.events.collect { handleResult(it) }
+        }
         scope.observeActive(state, { it.enabled && !it.paused }) { active ->
             if (active) ensureRegistered() else ensureUnregistered()
         }
@@ -46,27 +49,13 @@ class ActivityRecognitionDetector(
 
     private fun ensureRegistered() {
         if (pendingIntent != null) return
-        val intent = Intent(ACTION).setPackage(appContext.packageName)
         val newPendingIntent = PendingIntent.getBroadcast(
             appContext,
             0,
-            intent,
+            Intent(appContext, ActivityRecognitionReceiver::class.java),
             PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         pendingIntent = newPendingIntent
-
-        val newReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action == ACTION) handleResult(intent)
-            }
-        }
-        ContextCompat.registerReceiver(
-            appContext,
-            newReceiver,
-            IntentFilter(ACTION),
-            ContextCompat.RECEIVER_EXPORTED,
-        )
-        receiver = newReceiver
 
         val request = ActivityTransitionRequest(
             listOf(DetectedActivity.STILL, DetectedActivity.IN_VEHICLE, DetectedActivity.ON_BICYCLE, DetectedActivity.RUNNING, DetectedActivity.WALKING).flatMap { activity ->
@@ -85,8 +74,6 @@ class ActivityRecognitionDetector(
         stopTimeoutJob = null
         pendingIntent?.let { client.removeActivityTransitionUpdates(it) }
         pendingIntent = null
-        receiver?.let { appContext.unregisterReceiver(it) }
-        receiver = null
     }
 
     private fun handleResult(intent: Intent) {
@@ -111,8 +98,22 @@ class ActivityRecognitionDetector(
         stopTimeoutJob = null
         scope.launch { signals.emit(Signal.StationaryExit) }
     }
+}
 
-    private companion object {
-        const val ACTION = "org.traccar.client.ACTIVITY_TRANSITION"
+class ActivityRecognitionReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val pending = goAsync()
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                sharedTracker()
+                events.tryEmit(intent)
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
+    internal companion object {
+        val events = MutableSharedFlow<Intent>(replay = 1, extraBufferCapacity = 8)
     }
 }

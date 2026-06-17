@@ -34,6 +34,12 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".ActivityRecognitionReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".GeofenceReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

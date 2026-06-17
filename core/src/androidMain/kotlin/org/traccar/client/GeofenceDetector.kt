@@ -5,14 +5,15 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import androidx.core.content.ContextCompat
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingEvent
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,9 +38,11 @@ class GeofenceDetector(
     override val signals = MutableSharedFlow<Signal>(extraBufferCapacity = 8)
 
     private var pendingIntent: PendingIntent? = null
-    private var receiver: BroadcastReceiver? = null
 
     init {
+        scope.launch {
+            GeofenceReceiver.events.collect { handleEvent(it) }
+        }
         scope.observeActive(state, { it.enabled && it.paused }) { active ->
             if (active) tryRegister() else unregister()
         }
@@ -71,27 +74,13 @@ class GeofenceDetector(
             .setInitialTrigger(0)
             .addGeofence(geofence)
             .build()
-        val intent = Intent(ACTION).setPackage(appContext.packageName)
         val newPendingIntent = PendingIntent.getBroadcast(
             appContext,
             0,
-            intent,
+            Intent(appContext, GeofenceReceiver::class.java),
             PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         pendingIntent = newPendingIntent
-
-        val newReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action == ACTION) handleEvent(intent)
-            }
-        }
-        ContextCompat.registerReceiver(
-            appContext,
-            newReceiver,
-            IntentFilter(ACTION),
-            ContextCompat.RECEIVER_EXPORTED,
-        )
-        receiver = newReceiver
 
         client.addGeofences(request, newPendingIntent)
             .addOnSuccessListener { Log.log("Geofence registered") }
@@ -101,8 +90,6 @@ class GeofenceDetector(
     private fun unregister() {
         pendingIntent?.let { client.removeGeofences(it) }
         pendingIntent = null
-        receiver?.let { appContext.unregisterReceiver(it) }
-        receiver = null
     }
 
     private fun handleEvent(intent: Intent) {
@@ -117,8 +104,25 @@ class GeofenceDetector(
     }
 
     private companion object {
-        const val ACTION = "org.traccar.client.GEOFENCE_TRANSITION"
         const val REQUEST_ID = "traccar.stationary"
         val WAIT_TIMEOUT = 10.seconds
+    }
+}
+
+class GeofenceReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val pending = goAsync()
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                sharedTracker()
+                events.tryEmit(intent)
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
+    internal companion object {
+        val events = MutableSharedFlow<Intent>(replay = 1, extraBufferCapacity = 8)
     }
 }
