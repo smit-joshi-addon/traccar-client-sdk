@@ -1,96 +1,103 @@
 package org.traccar.client
 
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 class TrackerEngine internal constructor(
-    private val configStore: ConfigStore,
     private val stateStore: StateStore,
     private val queue: PositionQueue,
     private val network: NetworkMonitor,
-    private val createProvider: (LocationConfig) -> PositionProvider,
-    private val createUploader: (Config) -> Uploader,
+    private val locationSource: LocationSource,
+    signalSources: List<SignalSource>,
+    private val processors: List<PositionProcessor>,
+    private val uploader: Uploader,
     private val initialBackoff: Duration = 5.seconds,
     private val maxBackoff: Duration = 5.minutes,
 ) {
     private val mutex = Mutex()
-    private var runningScope: CoroutineScope? = null
-    private val wakeUp = Channel<Unit>(Channel.CONFLATED)
+    private val engineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val pipelineWakeUp = Channel<Unit>(Channel.CONFLATED)
+    private val heartbeatPositions = MutableSharedFlow<Position>(extraBufferCapacity = 4)
+
+    init {
+        engineScope.launch { signalSources.map { it.signals }.merge().collect { handle(it) } }
+        engineScope.launch { pipelineLoop() }
+        engineScope.launch { syncLoop() }
+    }
 
     suspend fun handle(signal: Signal) = mutex.withLock {
         when (signal) {
-            Signal.Restore -> applyRestore()
-            Signal.StationaryEnter,
-            Signal.StationaryExit,
-            Signal.HeartbeatTick -> Log.log("Signal ${signal::class.simpleName} not yet handled")
+            Signal.StationaryEnter -> applyStationaryEnter()
+            Signal.StationaryExit -> applyStationaryExit()
+            Signal.HeartbeatTick -> applyHeartbeatTick()
         }
     }
 
-    private suspend fun applyRestore() {
+    suspend fun requestPosition(): Boolean {
+        val raw = locationSource.fetchOnce() ?: return false
+        var current: Position? = raw
+        for (processor in processors) {
+            current = processor.process(current ?: break)
+        }
+        val processed = current ?: return false
+        return uploader.upload(processed)
+    }
+
+    private fun applyStationaryEnter() {
         val state = stateStore.state.value
-        if (!state.enabled) {
-            stopRunning()
-            return
-        }
-        val config = configStore.load() ?: run {
-            Log.log("No saved config; engine staying down")
-            stopRunning()
-            return
-        }
-        startRunning(config)
+        if (!state.enabled || state.paused) return
+        Log.log("StationaryEnter: pausing")
+        stateStore.update { it.copy(paused = true) }
     }
 
-    private fun startRunning(config: Config) {
-        if (runningScope != null) return
-        Log.log("Engine running")
-        val provider = createProvider(config.location)
-        val uploader = createUploader(config)
-        val filter = LocationFilter(config.location, stateStore)
-        val buffer = config.buffer
-        runningScope = CoroutineScope(SupervisorJob() + Dispatchers.Default).apply {
-            launch {
-                provider.positions()
-                    .filter { filter.accept(it) }
-                    .collect { position ->
-                        if (buffer) {
-                            queue.enqueue(position)
-                            wakeUp.trySend(Unit)
-                        } else {
-                            uploader.upload(position)
-                        }
-                    }
+    private fun applyStationaryExit() {
+        val state = stateStore.state.value
+        if (!state.enabled || !state.paused) return
+        Log.log("StationaryExit: resuming")
+        stateStore.update { it.copy(paused = false) }
+    }
+
+    private suspend fun applyHeartbeatTick() {
+        val state = stateStore.state.value
+        if (!state.enabled || !state.paused) return
+        Log.log("HeartbeatTick")
+        heartbeatPositions.emit(Position(time = Clock.System.now().toEpochMilliseconds()))
+    }
+
+    private suspend fun pipelineLoop() {
+        merge(locationSource.positions, heartbeatPositions).collect { incoming ->
+            if (!stateStore.state.value.enabled) return@collect
+            var current: Position? = incoming
+            for (processor in processors) {
+                current = processor.process(current ?: break)
             }
-            launch { syncLoop(uploader) }
+            val final = current ?: return@collect
+            queue.enqueue(final)
+            pipelineWakeUp.trySend(Unit)
         }
     }
 
-    private fun stopRunning() {
-        if (runningScope == null) return
-        Log.log("Engine stopped")
-        runningScope?.cancel()
-        runningScope = null
-    }
-
-    private suspend fun syncLoop(uploader: Uploader) {
+    private suspend fun syncLoop() {
         var backoff = initialBackoff
         while (currentCoroutineContext().isActive) {
             val pending = queue.peek()
             when {
-                pending == null -> wakeUp.receive()
+                pending == null -> pipelineWakeUp.receive()
                 !network.isOnline.value -> {
                     Log.log("Offline, waiting for network")
                     network.isOnline.first { it }

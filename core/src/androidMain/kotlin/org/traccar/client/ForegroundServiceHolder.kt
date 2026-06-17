@@ -1,6 +1,5 @@
 package org.traccar.client
 
-import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,18 +9,49 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
+
+class ForegroundServiceHolder(
+    scope: ComponentCoroutineScope,
+    context: Context,
+    state: StateFlow<State>,
+) : SignalSource {
+
+    override val signals: Flow<Signal> = emptyFlow()
+
+    private val appContext = context.applicationContext
+
+    init {
+        scope.observeActive(state, { it.enabled }) { enabled ->
+            if (enabled) start() else stop()
+        }
+    }
+
+    private fun start() {
+        val intent = Intent(appContext, TrackerService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            appContext.startForegroundService(intent)
+        } else {
+            appContext.startService(intent)
+        }
+    }
+
+    private fun stop() {
+        appContext.stopService(Intent(appContext, TrackerService::class.java))
+    }
+}
 
 class TrackerService : Service() {
 
-    private var wakeLock: PowerManager.WakeLock? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
@@ -29,30 +59,11 @@ class TrackerService : Service() {
         Log.log("Service created")
     }
 
-    @SuppressLint("WakelockTimeout")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startInForeground(NotificationConfig())
 
         serviceScope.launch {
-            val tracker = sharedTracker()
-            if (!tracker.isTracking.value) {
-                Log.log("Tracking not enabled, stopping service")
-                stopSelf()
-                return@launch
-            }
-            val config = tracker.loadConfig() ?: run {
-                Log.log("No saved config, stopping service")
-                stopSelf()
-                return@launch
-            }
-            startInForeground(config.notification)
-            if (config.wakeLock && wakeLock == null) {
-                Log.log("Acquiring wakelock")
-                wakeLock = getSystemService<PowerManager>()
-                    ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "traccar:tracker")
-                    ?.also { it.acquire() }
-            }
-            tracker.engine.handle(Signal.Restore)
+            sharedTracker()?.let { startInForeground(it.config.notification) }
         }
         return START_NOT_STICKY
     }
@@ -60,8 +71,6 @@ class TrackerService : Service() {
     override fun onDestroy() {
         Log.log("Service destroyed")
         serviceScope.cancel()
-        wakeLock?.release()
-        wakeLock = null
         super.onDestroy()
     }
 
@@ -94,19 +103,6 @@ class TrackerService : Service() {
             manager.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "Location tracking", NotificationManager.IMPORTANCE_LOW),
             )
-        }
-
-        internal fun start(context: Context) {
-            val intent = Intent(context, TrackerService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
-        }
-
-        internal fun stop() {
-            applicationContext.stopService(Intent(applicationContext, TrackerService::class.java))
         }
     }
 }

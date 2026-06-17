@@ -15,7 +15,7 @@ class BootReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                sharedTracker().restore()
+                sharedTracker()
             } finally {
                 pending.finish()
             }

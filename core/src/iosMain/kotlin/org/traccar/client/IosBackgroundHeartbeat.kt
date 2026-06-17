@@ -11,16 +11,12 @@ import platform.BackgroundTasks.BGAppRefreshTaskRequest
 import platform.BackgroundTasks.BGTaskScheduler
 import platform.Foundation.NSDate
 import platform.Foundation.dateByAddingTimeInterval
-import platform.Foundation.timeIntervalSince1970
 
 object IosBackgroundHeartbeat {
 
     internal const val TASK_IDENTIFIER = "org.traccar.client.heartbeat"
 
     private var registered = false
-    private lateinit var queue: PositionQueue
-    private lateinit var configProvider: suspend () -> Config?
-    private lateinit var createUploader: (Config) -> Uploader
 
     fun register() {
         if (registered) return
@@ -29,16 +25,6 @@ object IosBackgroundHeartbeat {
             usingQueue = null,
         ) { task -> handleTask(task as BGAppRefreshTask) }
         registered = true
-    }
-
-    internal fun bind(
-        queue: PositionQueue,
-        configProvider: suspend () -> Config?,
-        createUploader: (Config) -> Uploader,
-    ) {
-        this.queue = queue
-        this.configProvider = configProvider
-        this.createUploader = createUploader
     }
 
     @OptIn(ExperimentalForeignApi::class)
@@ -62,17 +48,13 @@ object IosBackgroundHeartbeat {
             task.setTaskCompletedWithSuccess(false)
         }
         scope.launch {
-            sharedTracker()
-            val config = configProvider()!!
-            schedule(config.location.heartbeatIntervalSeconds)
-            val position = Position(
-                time = (NSDate().timeIntervalSince1970 * 1000).toLong(),
-                battery = readBattery(),
-                charging = readCharging(),
-            )
-            val success = createUploader(config).upload(position)
-            if (!success) queue.enqueue(position)
-            task.setTaskCompletedWithSuccess(success)
+            val tracker = sharedTracker() ?: run {
+                task.setTaskCompletedWithSuccess(false)
+                return@launch
+            }
+            schedule(tracker.config.location.heartbeatIntervalSeconds)
+            tracker.engine.handle(Signal.HeartbeatTick)
+            task.setTaskCompletedWithSuccess(true)
         }
     }
 }

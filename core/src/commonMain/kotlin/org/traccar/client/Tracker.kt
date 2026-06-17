@@ -1,30 +1,23 @@
 package org.traccar.client
 
-import kotlin.time.Duration.Companion.seconds
+import app.cash.sqldelight.db.SqlDriver
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
+import org.koin.dsl.koinApplication
 
 class Tracker internal constructor(
-    private val configStore: ConfigStore,
+    val config: Config,
     private val stateStore: StateStore,
     internal val engine: TrackerEngine,
-    private val createProvider: (LocationConfig) -> PositionProvider,
-    private val createUploader: (Config) -> Uploader,
-    private val onStarted: () -> Unit,
-    private val onStopped: () -> Unit,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -32,44 +25,17 @@ class Tracker internal constructor(
         .map { it.enabled }
         .stateIn(scope, SharingStarted.Eagerly, stateStore.state.value.enabled)
 
-    private val lifecycleMutex = Mutex()
-
-    suspend fun start(config: Config) = lifecycleMutex.withLock {
+    fun start() {
         Log.log("Tracker start ${config.serverUrl} ${config.deviceId}")
-        configStore.save(config)
         stateStore.update { it.copy(enabled = true) }
-        onStarted()
-        engine.handle(Signal.Restore)
     }
 
-    suspend fun stop() = lifecycleMutex.withLock {
+    fun stop() {
         Log.log("Tracker stop")
         stateStore.update { it.copy(enabled = false, paused = false) }
-        engine.handle(Signal.Restore)
-        onStopped()
     }
 
-    suspend fun restore() = lifecycleMutex.withLock {
-        Log.log("Tracker restore")
-        if (stateStore.state.value.enabled) onStarted()
-        engine.handle(Signal.Restore)
-    }
-
-    suspend fun requestPosition(config: Config): Boolean {
-        Log.log("Request position ${config.serverUrl} ${config.deviceId}")
-        val provider = createProvider(config.location.copy(stopDetection = false))
-        val uploader = createUploader(config)
-        val position = withTimeoutOrNull(30.seconds) {
-            provider.positions().first()
-        }
-        if (position == null) {
-            Log.log("Request position timed out")
-            return false
-        }
-        return uploader.upload(position)
-    }
-
-    internal suspend fun loadConfig(): Config? = configStore.load()
+    suspend fun requestPosition(): Boolean = engine.requestPosition()
 
     suspend fun getLogs(): List<LogEntry> = Log.store?.all() ?: emptyList()
 
@@ -78,12 +44,22 @@ class Tracker internal constructor(
     }
 }
 
-internal expect suspend fun createTracker(): Tracker
+private val sharedMutex = Mutex()
+private var sharedTrackerInstance: Tracker? = null
 
-private val sharedScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-private val sharedTrackerDeferred: Deferred<Tracker> = sharedScope.async(start = CoroutineStart.LAZY) {
-    createTracker()
+suspend fun sharedTracker(config: Config? = null): Tracker? = sharedMutex.withLock {
+    sharedTrackerInstance?.let { return@withLock it }
+    withContext(Dispatchers.IO) {
+        val koin = koinApplication { modules(coreModule, platformModule) }.koin
+        val driver: SqlDriver = koin.get()
+        Log.store = LogStore(driver)
+        val configStore: ConfigStore = koin.get()
+        val effectiveConfig = config ?: configStore.load() ?: return@withContext null
+        if (config != null) configStore.save(config)
+        koin.declare(StateStore.create(koin.get()))
+        koin.declare(effectiveConfig)
+        val tracker = koin.get<Tracker>()
+        sharedTrackerInstance = tracker
+        tracker
+    }
 }
-
-suspend fun sharedTracker(): Tracker = sharedTrackerDeferred.await()

@@ -9,35 +9,36 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 class LocationFilter(
-    private val config: LocationConfig,
+    config: Config,
     private val stateStore: StateStore,
-) : PositionFilter {
+) : PositionProcessor {
 
+    private val locationConfig: LocationConfig = config.location
     private var lastAccepted: Position? = stateStore.state.value.lastAcceptedLocation
 
-    override suspend fun accept(position: Position): Boolean {
+    override suspend fun process(position: Position): Position? {
         if (position.latitude == null || position.longitude == null) {
             Log.log("Heartbeat accepted")
-            return true
+            return position
         }
         val previous = lastAccepted
         if (previous == null) {
             persistAccepted(position)
             Log.log("Location accepted ${position.latitude},${position.longitude}")
-            return true
+            return position
         }
-        val timeTrigger = (position.time - previous.time) >= config.intervalSeconds * 1000L
-        val distanceTrigger = distance(previous, position) >= config.distanceMeters
-        val angleTrigger = config.angleDegrees > 0 &&
+        val timeTrigger = (position.time - previous.time) >= locationConfig.intervalSeconds * 1000L
+        val distanceTrigger = distance(previous, position) >= locationConfig.distanceMeters
+        val angleTrigger = locationConfig.angleDegrees > 0 &&
             previous.bearing != null && position.bearing != null &&
-            bearingChange(previous.bearing, position.bearing) >= config.angleDegrees
+            bearingChange(previous.bearing, position.bearing) >= locationConfig.angleDegrees
         if (timeTrigger || distanceTrigger || angleTrigger) {
             persistAccepted(position)
             Log.log("Location accepted ${position.latitude},${position.longitude}")
-            return true
+            return position
         }
         Log.log("Location filtered ${position.latitude},${position.longitude}")
-        return false
+        return null
     }
 
     private fun persistAccepted(position: Position) {
@@ -45,17 +46,18 @@ class LocationFilter(
         stateStore.update { it.copy(lastAcceptedLocation = position) }
     }
 
-    private fun distance(a: Position, b: Position): Double {
-        val lat1 = a.latitude!! * PI / 180
-        val lat2 = b.latitude!! * PI / 180
-        val dLat = (b.latitude - a.latitude) * PI / 180
-        val dLon = (b.longitude!! - a.longitude!!) * PI / 180
-        val h = sin(dLat / 2).pow(2) + cos(lat1) * cos(lat2) * sin(dLon / 2).pow(2)
-        return 2 * EARTH_RADIUS_METERS * asin(sqrt(h))
+    private fun distance(from: Position, to: Position): Double {
+        val fromLatitudeRadians = from.latitude!! * PI / 180
+        val toLatitudeRadians = to.latitude!! * PI / 180
+        val latitudeDelta = (to.latitude - from.latitude) * PI / 180
+        val longitudeDelta = (to.longitude!! - from.longitude!!) * PI / 180
+        val haversine = sin(latitudeDelta / 2).pow(2) +
+            cos(fromLatitudeRadians) * cos(toLatitudeRadians) * sin(longitudeDelta / 2).pow(2)
+        return 2 * EARTH_RADIUS_METERS * asin(sqrt(haversine))
     }
 
-    private fun bearingChange(a: Double, b: Double): Double {
-        val diff = abs(a - b)
+    private fun bearingChange(from: Double, to: Double): Double {
+        val diff = abs(from - to)
         return if (diff > 180) 360 - diff else diff
     }
 

@@ -1,0 +1,110 @@
+package org.traccar.client
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.CancellationSignal
+import android.os.Looper
+import androidx.core.content.ContextCompat
+import androidx.core.content.getSystemService
+import androidx.core.location.LocationManagerCompat
+import kotlin.coroutines.resume
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+
+@SuppressLint("MissingPermission")
+class AndroidLocationSource(
+    scope: ComponentCoroutineScope,
+    context: Context,
+    config: Config,
+    state: StateFlow<State>,
+) : LocationSource {
+
+    private val locationConfig = config.location.effective
+    private val appContext = context.applicationContext
+    private val locationManager: LocationManager = checkNotNull(appContext.getSystemService())
+
+    override val positions = MutableSharedFlow<Position>(extraBufferCapacity = 8)
+
+    private var listener: LocationListener? = null
+    private var currentLocationCancellation: CancellationSignal? = null
+
+    init {
+        scope.observeActive(state, { it.enabled && !it.paused }) { active ->
+            if (active) ensureStarted() else ensureStopped()
+        }
+    }
+
+    private fun ensureStarted() {
+        if (listener != null) return
+        startUpdates()
+    }
+
+    private suspend fun ensureStopped() {
+        if (listener == null) return
+        val finalFix = awaitCurrentLocation()
+        stopUpdates()
+        finalFix?.let { positions.emit(it.toPosition()) }
+    }
+
+    override suspend fun fetchOnce(): Position? = awaitCurrentLocation()?.toPosition()
+
+    private fun startUpdates() {
+        val newListener = LocationListener { location ->
+            positions.tryEmit(location.toPosition())
+        }
+        locationManager.requestLocationUpdates(
+            locationConfig.accuracy.toAndroidProvider(),
+            if (locationConfig.distanceMeters > 0) 0L else locationConfig.intervalSeconds * 1000L,
+            locationConfig.distanceMeters.toFloat(),
+            newListener,
+            Looper.getMainLooper(),
+        )
+        listener = newListener
+    }
+
+    private fun stopUpdates() {
+        listener?.let { locationManager.removeUpdates(it) }
+        listener = null
+    }
+
+    private suspend fun awaitCurrentLocation(): Location? {
+        currentLocationCancellation?.cancel()
+        val signal = CancellationSignal()
+        currentLocationCancellation = signal
+        return try {
+            suspendCancellableCoroutine { continuation ->
+                LocationManagerCompat.getCurrentLocation(
+                    locationManager,
+                    locationConfig.accuracy.toAndroidProvider(),
+                    signal,
+                    ContextCompat.getMainExecutor(appContext),
+                ) { location ->
+                    if (continuation.isActive) continuation.resume(location)
+                }
+                continuation.invokeOnCancellation { signal.cancel() }
+            }
+        } finally {
+            if (currentLocationCancellation === signal) currentLocationCancellation = null
+        }
+    }
+
+    private fun Location.toPosition(): Position = Position(
+        latitude = latitude,
+        longitude = longitude,
+        accuracy = accuracy.toDouble(),
+        time = time,
+        altitude = if (hasAltitude()) altitude else null,
+        speed = if (hasSpeed()) speed.toDouble() else null,
+        bearing = if (hasBearing()) bearing.toDouble() else null,
+    )
+}
+
+private fun Accuracy.toAndroidProvider(): String = when (this) {
+    Accuracy.HIGHEST, Accuracy.HIGH -> LocationManager.GPS_PROVIDER
+    Accuracy.MEDIUM -> LocationManager.NETWORK_PROVIDER
+    Accuracy.LOW -> LocationManager.PASSIVE_PROVIDER
+}
