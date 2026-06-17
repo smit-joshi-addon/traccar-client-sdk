@@ -40,6 +40,9 @@
         <receiver
             android:name=".GeofenceReceiver"
             android:exported="false" />
+        <receiver
+            android:name=".HeartbeatReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

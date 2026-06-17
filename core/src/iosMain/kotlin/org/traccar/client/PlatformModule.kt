@@ -19,4 +19,5 @@ internal actual val platformModule: Module = module {
 
     single { MotionActivityDetector(get(), get(), get()) } bind SignalSource::class
     single { RegionDetector(get(), get(), get(), get()) } bind SignalSource::class
+    single { IosBackgroundHeartbeat(get(), get(), get()) } bind SignalSource::class
 }

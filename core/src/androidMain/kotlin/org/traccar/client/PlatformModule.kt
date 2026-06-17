@@ -34,6 +34,6 @@ internal actual val platformModule: Module = module {
     single { ActivityRecognitionDetector(get(), get(), get(), get()) } bind SignalSource::class
     single { GeofenceDetector(get(), get(), get(), get(), get()) } bind SignalSource::class
     single { WakeLockHolder(get(), get(), get(), get()) } bind SignalSource::class
-    single { InProcessHeartbeatTrigger(get(), get(), get()) } bind SignalSource::class
+    single { AlarmHeartbeatTrigger(get(), get(), get(), get()) } bind SignalSource::class
     single { ForegroundServiceHolder(get(), get(), get()) } bind SignalSource::class
 }
