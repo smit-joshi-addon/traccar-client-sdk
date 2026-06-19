@@ -12,7 +12,7 @@ import org.koin.dsl.bind
 import org.koin.dsl.module
 import org.traccar.client.db.Database
 
-internal actual val platformModule: Module = module {
+internal actual fun platformModule(): Module = module {
     single<Context> { applicationContext }
     single<SqlDriver> { AndroidSqliteDriver(Database.Schema, get(), "tracker.db") }
     single { HttpClient(Android) }

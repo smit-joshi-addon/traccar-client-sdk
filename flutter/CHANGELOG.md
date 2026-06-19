@@ -1,3 +1,7 @@
+## 0.0.17
+
+* Fix `setConfig` / `Tracker.updateConfig` returning a tracker bound to the old config — every subsequent action (uploads, observers, `Tracker.config`) kept seeing the previous `serverUrl`/`deviceId`. Caused by Koin caching singleton instances on shared `Module` objects across `KoinApplication` instances; modules are now constructed per Koin app.
+
 ## 0.0.16
 
 * **Breaking:** split SDK setup from action methods. Replace `start(Config)` and `requestPosition(Config)` with explicit `init(Config)` (idempotent install, call once at app startup) plus zero-arg `start()` and `requestPosition()`. Add `setConfig(Config)` for runtime config updates against a running tracker.

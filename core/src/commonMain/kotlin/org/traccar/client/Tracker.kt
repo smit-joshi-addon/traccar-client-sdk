@@ -70,7 +70,7 @@ private suspend fun bootstrap(config: Config): Tracker {
 }
 
 private suspend fun openKoin() = withContext(Dispatchers.IO) {
-    val koin = koinApplication { modules(coreModule, platformModule) }.koin
+    val koin = koinApplication { modules(coreModule(), platformModule()) }.koin
     Log.store = LogStore(koin.get())
     koin
 }

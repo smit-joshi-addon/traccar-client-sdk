@@ -9,7 +9,7 @@ import org.koin.dsl.bind
 import org.koin.dsl.module
 import org.traccar.client.db.Database
 
-internal actual val platformModule: Module = module {
+internal actual fun platformModule(): Module = module {
     single<SqlDriver> { NativeSqliteDriver(Database.Schema, "tracker.db") }
     single { HttpClient(Darwin) }
     single<NetworkMonitor> { IosNetworkMonitor() }

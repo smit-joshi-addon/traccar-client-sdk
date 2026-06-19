@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
-internal val coreModule: Module = module {
+internal fun coreModule(): Module = module {
     single { ConfigStore(get()) }
     single<PositionQueue> { DatabaseQueue(get()) }
     single<Flow<Position>> { get<LocationSource>().positions }
@@ -40,4 +40,4 @@ internal val coreModule: Module = module {
     }
 }
 
-internal expect val platformModule: Module
+internal expect fun platformModule(): Module

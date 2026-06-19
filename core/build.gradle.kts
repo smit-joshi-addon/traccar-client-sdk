@@ -68,7 +68,9 @@ kotlin {
 
 mavenPublishing {
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
-    signAllPublications()
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
     coordinates("org.traccar", "traccar-client-sdk", version.toString())
     pom {
         name.set("Traccar Client SDK")
