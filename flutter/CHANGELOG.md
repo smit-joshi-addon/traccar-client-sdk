@@ -1,3 +1,12 @@
+## 0.0.16
+
+* **Breaking:** split SDK setup from action methods. Replace `start(Config)` and `requestPosition(Config)` with explicit `init(Config)` (idempotent install, call once at app startup) plus zero-arg `start()` and `requestPosition()`. Add `setConfig(Config)` for runtime config updates against a running tracker.
+* Native SDK rewrite: tracker now exposes `state` (StateFlow) for reactive UIs, `start`/`stop` are suspend and persist their writes before returning, `updateConfig` rebuilds the SDK in place without losing tracking state, and components clean up OS-level resources deterministically via a single `observeState` cancellation path.
+* Stop-detection no longer waits up to ten seconds for a final GPS fix when the user just hits Stop; the wait only applies when transitioning to the SDK's stationary mode (where the fix is the geofence anchor).
+* The actual stop position is now uploaded — previously dropped by the location filter's distance triggers because the user wasn't moving.
+* Heartbeats survive process death: Android uses `AlarmManager` (`setAndAllowWhileIdle` through Doze), iOS uses `BGTaskScheduler` as a proper SDK signal source.
+* Static manifest receivers for activity transitions, geofence exits, and heartbeats — events fire even when the SDK process has been killed.
+
 ## 0.0.15
 
 * Persist tracker state across process kills: stationary mode and the location filter's reference position now survive cold launch, so resume after an iOS region exit or Android `BootReceiver` restart no longer re-runs the 60s stop-detection timeout or emits a duplicate-feeling first fix.
