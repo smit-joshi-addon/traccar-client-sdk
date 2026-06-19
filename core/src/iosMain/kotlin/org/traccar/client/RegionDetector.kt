@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.withTimeoutOrNull
 import platform.CoreLocation.CLCircularRegion
 import platform.CoreLocation.CLLocationCoordinate2DMake
@@ -27,6 +27,7 @@ class RegionDetector(
 ) : SignalSource {
 
     private val radius = config.location.stationaryRadiusMeters
+    private val mainScope = scope + Dispatchers.Main
 
     override val signals = MutableSharedFlow<Signal>(extraBufferCapacity = 8)
 
@@ -34,7 +35,7 @@ class RegionDetector(
     private var delegate: CLLocationManagerDelegateProtocol? = null
 
     init {
-        scope.observeState(state, { it.enabled && it.paused }, inactive = false) { active ->
+        mainScope.observeState(state, { it.enabled && it.paused }, inactive = false) { active ->
             if (active) tryRegister() else unregister()
         }
     }
@@ -55,7 +56,7 @@ class RegionDetector(
     }
 
     @OptIn(ExperimentalForeignApi::class)
-    private suspend fun register(latitude: Double, longitude: Double, radius: Int) = withContext(Dispatchers.Main) {
+    private fun register(latitude: Double, longitude: Double, radius: Int) {
         val newDelegate = object : NSObject(), CLLocationManagerDelegateProtocol {
             override fun locationManager(manager: CLLocationManager, didExitRegion: CLRegion) {
                 if (didExitRegion.identifier == REGION_ID) {
@@ -75,7 +76,7 @@ class RegionDetector(
             Log.log("Region monitoring requires Always authorization")
             newManager.delegate = null
             delegate = null
-            return@withContext
+            return
         }
 
         val region = CLCircularRegion(
@@ -90,8 +91,8 @@ class RegionDetector(
         manager = newManager
     }
 
-    private suspend fun unregister() = withContext(Dispatchers.Main) {
-        val current = manager ?: return@withContext
+    private fun unregister() {
+        val current = manager ?: return
         current.monitoredRegions.forEach { region ->
             (region as? CLRegion)?.let { current.stopMonitoringForRegion(it) }
         }

@@ -1,65 +1,82 @@
 package org.traccar.client
 
-import app.cash.sqldelight.db.SqlDriver
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.job
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.koin.core.Koin
 import org.koin.dsl.koinApplication
 
 class Tracker internal constructor(
     val config: Config,
     private val stateStore: StateStore,
-    internal val engine: TrackerEngine,
+    private val locationSource: LocationSource,
+    private val batteryProcessor: PositionProcessor,
+    private val uploader: Uploader,
+    private val componentScope: ComponentCoroutineScope,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val state: StateFlow<State> = stateStore.state
 
-    val isTracking: StateFlow<Boolean> = stateStore.state
-        .map { it.enabled }
-        .stateIn(scope, SharingStarted.Eagerly, stateStore.state.value.enabled)
-
-    fun start() {
+    suspend fun start() = sharedMutex.withLock {
         Log.log("Tracker start ${config.serverUrl} ${config.deviceId}")
         stateStore.update { it.copy(enabled = true) }
     }
 
-    fun stop() {
+    suspend fun stop() = sharedMutex.withLock {
         Log.log("Tracker stop")
         stateStore.update { it.copy(enabled = false, paused = false) }
     }
 
-    suspend fun requestPosition(): Boolean = engine.requestPosition()
+    suspend fun requestPosition(): Boolean {
+        val raw = locationSource.fetchOnce() ?: return false
+        val processed = batteryProcessor.process(raw) ?: return false
+        return uploader.upload(processed)
+    }
 
     suspend fun getLogs(): List<LogEntry> = Log.store?.all() ?: emptyList()
 
-    suspend fun clearLogs() {
-        Log.store?.clear()
+    suspend fun clearLogs() = Log.store?.clear()
+
+    suspend fun updateConfig(newConfig: Config): Tracker = sharedMutex.withLock {
+        componentScope.coroutineContext.job.cancelAndJoin()
+        sharedTrackerInstance = null
+        bootstrap(newConfig)
     }
 }
 
 private val sharedMutex = Mutex()
 private var sharedTrackerInstance: Tracker? = null
 
-suspend fun sharedTracker(config: Config? = null): Tracker? = sharedMutex.withLock {
+suspend fun sharedTracker(): Tracker? = sharedMutex.withLock {
     sharedTrackerInstance?.let { return@withLock it }
-    withContext(Dispatchers.IO) {
-        val koin = koinApplication { modules(coreModule, platformModule) }.koin
-        val driver: SqlDriver = koin.get()
-        Log.store = LogStore(driver)
-        val configStore: ConfigStore = koin.get()
-        val effectiveConfig = config ?: configStore.load() ?: return@withContext null
-        if (config != null) configStore.save(config)
-        koin.declare(StateStore.create(koin.get()))
-        koin.declare(effectiveConfig)
-        val tracker = koin.get<Tracker>()
-        sharedTrackerInstance = tracker
-        tracker
-    }
+    val koin = openKoin()
+    val persisted = koin.get<ConfigStore>().load() ?: return@withLock null
+    install(koin, persisted)
+}
+
+suspend fun initTracker(config: Config): Tracker = sharedMutex.withLock {
+    bootstrap(config)
+}
+
+private suspend fun bootstrap(config: Config): Tracker {
+    val koin = openKoin()
+    koin.get<ConfigStore>().save(config)
+    return install(koin, config)
+}
+
+private suspend fun openKoin() = withContext(Dispatchers.IO) {
+    val koin = koinApplication { modules(coreModule, platformModule) }.koin
+    Log.store = LogStore(koin.get())
+    koin
+}
+
+private suspend fun install(koin: Koin, config: Config): Tracker {
+    koin.declare(StateStore.create(koin.get()))
+    koin.declare(config)
+    koin.get<TrackerEngine>()
+    return koin.get<Tracker>().also { sharedTrackerInstance = it }
 }

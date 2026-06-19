@@ -6,6 +6,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.withTimeoutOrNull
@@ -27,12 +28,13 @@ import platform.Foundation.timeIntervalSince1970
 import platform.darwin.NSObject
 
 class IosLocationSource(
-    private val scope: ComponentCoroutineScope,
+    scope: ComponentCoroutineScope,
     config: Config,
     state: StateFlow<State>,
 ) : LocationSource {
 
     private val locationConfig = config.location.effective
+    private val mainScope = scope + Dispatchers.Main
 
     override val positions = MutableSharedFlow<Position>(extraBufferCapacity = 8)
 
@@ -42,7 +44,7 @@ class IosLocationSource(
     private var pendingLocation: CompletableDeferred<CLLocation>? = null
 
     init {
-        scope.observeState(state, State::locationMode, inactive = LocationMode.Off) { mode ->
+        mainScope.observeState(state, State::locationMode, inactive = LocationMode.Off) { mode ->
             when (mode) {
                 LocationMode.Active -> ensureStarted()
                 LocationMode.Stationary -> ensureStopped(awaitFinalFix = true)
@@ -51,8 +53,8 @@ class IosLocationSource(
         }
     }
 
-    private suspend fun ensureStarted() = withContext(Dispatchers.Main) {
-        if (manager != null) return@withContext
+    private suspend fun ensureStarted() {
+        if (manager != null) return
 
         val authStatus = CompletableDeferred<Boolean>()
         val newDelegate = object : NSObject(), CLLocationManagerDelegateProtocol {
@@ -105,7 +107,7 @@ class IosLocationSource(
             Log.log("Location permission denied")
             newManager.delegate = null
             delegate = null
-            return@withContext
+            return
         }
 
         newManager.startMonitoringSignificantLocationChanges()
@@ -114,8 +116,8 @@ class IosLocationSource(
     }
 
     @OptIn(ExperimentalForeignApi::class)
-    private suspend fun ensureStopped(awaitFinalFix: Boolean) = withContext(Dispatchers.Main) {
-        val current = manager ?: return@withContext
+    private suspend fun ensureStopped(awaitFinalFix: Boolean) {
+        val current = manager ?: return
         if (awaitFinalFix) {
             val deferred = CompletableDeferred<CLLocation>()
             pendingLocation = deferred

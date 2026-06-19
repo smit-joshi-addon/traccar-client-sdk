@@ -4,9 +4,6 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -26,18 +23,18 @@ class TrackerEngine internal constructor(
     signalSources: List<SignalSource>,
     private val processors: List<PositionProcessor>,
     private val uploader: Uploader,
+    scope: ComponentCoroutineScope,
     private val initialBackoff: Duration = 5.seconds,
     private val maxBackoff: Duration = 5.minutes,
 ) {
     private val mutex = Mutex()
-    private val engineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val pipelineWakeUp = Channel<Unit>(Channel.CONFLATED)
     private val heartbeatPositions = MutableSharedFlow<Position>(extraBufferCapacity = 4)
 
     init {
-        engineScope.launch { signalSources.map { it.signals }.merge().collect { handle(it) } }
-        engineScope.launch { pipelineLoop() }
-        engineScope.launch { syncLoop() }
+        scope.launch { signalSources.map { it.signals }.merge().collect { handle(it) } }
+        scope.launch { pipelineLoop() }
+        scope.launch { syncLoop() }
     }
 
     suspend fun handle(signal: Signal) = mutex.withLock {
@@ -48,24 +45,14 @@ class TrackerEngine internal constructor(
         }
     }
 
-    suspend fun requestPosition(): Boolean {
-        val raw = locationSource.fetchOnce() ?: return false
-        var current: Position? = raw
-        for (processor in processors) {
-            current = processor.process(current ?: break)
-        }
-        val processed = current ?: return false
-        return uploader.upload(processed)
-    }
-
-    private fun applyStationaryEnter() {
+    private suspend fun applyStationaryEnter() {
         val state = stateStore.state.value
         if (!state.enabled || state.paused) return
         Log.log("StationaryEnter: pausing")
         stateStore.update { it.copy(paused = true) }
     }
 
-    private fun applyStationaryExit() {
+    private suspend fun applyStationaryExit() {
         val state = stateStore.state.value
         if (!state.enabled || !state.paused) return
         Log.log("StationaryExit: resuming")

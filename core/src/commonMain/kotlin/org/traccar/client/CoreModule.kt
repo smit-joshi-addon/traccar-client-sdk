@@ -24,6 +24,7 @@ internal val coreModule: Module = module {
             signalSources = getAll<SignalSource>(),
             processors = listOf(get<LocationFilter>(), get()),
             uploader = get(),
+            scope = get(),
         )
     }
 
@@ -31,7 +32,10 @@ internal val coreModule: Module = module {
         Tracker(
             config = get(),
             stateStore = get(),
-            engine = get(),
+            locationSource = get(),
+            batteryProcessor = get(),
+            uploader = get(),
+            componentScope = get(),
         )
     }
 }
