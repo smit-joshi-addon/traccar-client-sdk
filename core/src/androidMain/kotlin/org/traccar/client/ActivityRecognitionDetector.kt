@@ -79,10 +79,26 @@ class ActivityRecognitionDetector(
     private fun handleResult(intent: Intent) {
         val result = ActivityTransitionResult.extractResult(intent) ?: return
         result.transitionEvents.forEach { event ->
+            Log.log("Activity transition: ${activityName(event.activityType)} ${transitionName(event.transitionType)}")
             if (event.activityType != DetectedActivity.STILL) return@forEach
             if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) onStillEnter()
             else onStillExit()
         }
+    }
+
+    private fun activityName(type: Int): String = when (type) {
+        DetectedActivity.STILL -> "still"
+        DetectedActivity.IN_VEHICLE -> "in_vehicle"
+        DetectedActivity.ON_BICYCLE -> "on_bicycle"
+        DetectedActivity.RUNNING -> "running"
+        DetectedActivity.WALKING -> "walking"
+        else -> "unknown"
+    }
+
+    private fun transitionName(type: Int): String = when (type) {
+        ActivityTransition.ACTIVITY_TRANSITION_ENTER -> "enter"
+        ActivityTransition.ACTIVITY_TRANSITION_EXIT -> "exit"
+        else -> "unknown"
     }
 
     private fun onStillEnter() {
