@@ -34,7 +34,7 @@ class AlarmHeartbeatTrigger(
                 if (state.value.enabled && state.value.paused) scheduleNext()
             }
         }
-        scope.observeActive(state, { it.enabled && it.paused }) { active ->
+        scope.observeState(state, { it.enabled && it.paused }, inactive = false) { active ->
             if (active) scheduleNext() else cancelScheduled()
         }
     }

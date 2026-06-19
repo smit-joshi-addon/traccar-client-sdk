@@ -25,7 +25,7 @@ class IosBackgroundHeartbeat(
 
     init {
         instance = this
-        scope.observeActive(state, { it.enabled && it.paused }) { active ->
+        scope.observeState(state, { it.enabled && it.paused }, inactive = false) { active ->
             if (active) scheduleNext(intervalSeconds) else cancelScheduled()
         }
     }

@@ -31,7 +31,7 @@ class ForegroundServiceHolder(
     private val appContext = context.applicationContext
 
     init {
-        scope.observeActive(state, { it.enabled }) { enabled ->
+        scope.observeState(state, { it.enabled }, inactive = false) { enabled ->
             if (enabled) start() else stop()
         }
     }

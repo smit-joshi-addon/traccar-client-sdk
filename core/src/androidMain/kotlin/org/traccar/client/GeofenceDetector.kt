@@ -43,7 +43,7 @@ class GeofenceDetector(
         scope.launch {
             GeofenceReceiver.events.collect { handleEvent(it) }
         }
-        scope.observeActive(state, { it.enabled && it.paused }) { active ->
+        scope.observeState(state, { it.enabled && it.paused }, inactive = false) { active ->
             if (active) tryRegister() else unregister()
         }
     }

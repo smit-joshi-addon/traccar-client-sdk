@@ -24,7 +24,7 @@ class MotionActivityDetector(
     private var stopTimeoutJob: Job? = null
 
     init {
-        scope.observeActive(state, { it.enabled && !it.paused }) { active ->
+        scope.observeState(state, { it.enabled && !it.paused }, inactive = false) { active ->
             if (active) ensureStarted() else ensureStopped()
         }
     }

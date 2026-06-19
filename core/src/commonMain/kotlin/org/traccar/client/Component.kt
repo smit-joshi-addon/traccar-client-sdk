@@ -16,6 +16,14 @@ interface LocationSource {
     suspend fun fetchOnce(): Position?
 }
 
+internal enum class LocationMode { Off, Active, Stationary }
+
+internal fun State.locationMode(): LocationMode = when {
+    !enabled -> LocationMode.Off
+    paused -> LocationMode.Stationary
+    else -> LocationMode.Active
+}
+
 interface SignalSource {
     val signals: Flow<Signal>
 }
@@ -26,13 +34,15 @@ fun interface PositionProcessor {
 
 class ComponentCoroutineScope : CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-internal fun CoroutineScope.observeActive(
+internal fun <T> CoroutineScope.observeState(
     state: StateFlow<State>,
-    predicate: (State) -> Boolean,
-    block: suspend (Boolean) -> Unit,
+    select: (State) -> T,
+    inactive: T,
+    block: suspend (T) -> Unit,
 ): Job = launch {
-    state
-        .map(predicate)
-        .distinctUntilChanged()
-        .collectLatest(block)
+    try {
+        state.map(select).distinctUntilChanged().collectLatest(block)
+    } finally {
+        block(inactive)
+    }
 }

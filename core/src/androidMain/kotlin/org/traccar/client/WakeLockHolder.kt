@@ -22,7 +22,7 @@ class WakeLockHolder(
 
     init {
         if (config.wakeLock) {
-            scope.observeActive(state, { it.enabled && !it.paused }) { active ->
+            scope.observeState(state, { it.enabled && !it.paused }, inactive = false) { active ->
                 if (active) acquire() else release()
             }
         }

@@ -42,8 +42,12 @@ class IosLocationSource(
     private var pendingLocation: CompletableDeferred<CLLocation>? = null
 
     init {
-        scope.observeActive(state, { it.enabled && !it.paused }) { active ->
-            if (active) ensureStarted() else ensureStopped()
+        scope.observeState(state, State::locationMode, inactive = LocationMode.Off) { mode ->
+            when (mode) {
+                LocationMode.Active -> ensureStarted()
+                LocationMode.Stationary -> ensureStopped(awaitFinalFix = true)
+                LocationMode.Off -> ensureStopped(awaitFinalFix = false)
+            }
         }
     }
 
@@ -110,17 +114,19 @@ class IosLocationSource(
     }
 
     @OptIn(ExperimentalForeignApi::class)
-    private suspend fun ensureStopped() = withContext(Dispatchers.Main) {
+    private suspend fun ensureStopped(awaitFinalFix: Boolean) = withContext(Dispatchers.Main) {
         val current = manager ?: return@withContext
-        val deferred = CompletableDeferred<CLLocation>()
-        pendingLocation = deferred
-        current.requestLocation()
-        val finalFix = try {
-            withTimeoutOrNull(10.seconds) { deferred.await() }
-        } finally {
-            pendingLocation = null
+        if (awaitFinalFix) {
+            val deferred = CompletableDeferred<CLLocation>()
+            pendingLocation = deferred
+            current.requestLocation()
+            val finalFix = try {
+                withTimeoutOrNull(10.seconds) { deferred.await() }
+            } finally {
+                pendingLocation = null
+            }
+            finalFix?.let { positions.tryEmit(it.toPosition()) }
         }
-        finalFix?.let { positions.tryEmit(it.toPosition()) }
         current.stopUpdatingLocation()
         current.stopMonitoringSignificantLocationChanges()
         current.delegate = null

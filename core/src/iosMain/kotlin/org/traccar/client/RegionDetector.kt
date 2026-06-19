@@ -34,7 +34,7 @@ class RegionDetector(
     private var delegate: CLLocationManagerDelegateProtocol? = null
 
     init {
-        scope.observeActive(state, { it.enabled && it.paused }) { active ->
+        scope.observeState(state, { it.enabled && it.paused }, inactive = false) { active ->
             if (active) tryRegister() else unregister()
         }
     }

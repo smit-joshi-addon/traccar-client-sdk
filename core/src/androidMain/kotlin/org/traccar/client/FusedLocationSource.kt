@@ -37,21 +37,27 @@ class FusedLocationSource(
     private var currentLocationToken: CancellationTokenSource? = null
 
     init {
-        scope.observeActive(state, { it.enabled && !it.paused }) { active ->
-            if (active) ensureStarted() else ensureStopped()
+        scope.observeState(state, State::locationMode, inactive = LocationMode.Off) { mode ->
+            when (mode) {
+                LocationMode.Active -> ensureStarted()
+                LocationMode.Stationary -> ensureStopped(awaitFinalFix = true)
+                LocationMode.Off -> ensureStopped(awaitFinalFix = false)
+            }
         }
     }
 
-    private suspend fun ensureStarted() {
+    private fun ensureStarted() {
         if (callback != null) return
         startUpdates(locationConfig)
     }
 
-    private suspend fun ensureStopped() {
+    private suspend fun ensureStopped(awaitFinalFix: Boolean) {
         if (callback == null) return
-        val finalFix = awaitCurrentLocation()
+        if (awaitFinalFix) {
+            val finalFix = awaitCurrentLocation()
+            finalFix?.let { positions.emit(it.toPosition()) }
+        }
         stopUpdates()
-        finalFix?.let { positions.emit(it.toPosition()) }
     }
 
     override suspend fun fetchOnce(): Position? = awaitCurrentLocation()?.toPosition()
