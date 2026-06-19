@@ -113,6 +113,7 @@ class IosLocationSource(
         newManager.startMonitoringSignificantLocationChanges()
         newManager.startUpdatingLocation()
         manager = newManager
+        Log.log("Location updates started")
     }
 
     @OptIn(ExperimentalForeignApi::class)
@@ -132,6 +133,7 @@ class IosLocationSource(
         current.stopUpdatingLocation()
         current.stopMonitoringSignificantLocationChanges()
         current.delegate = null
+        Log.log("Location updates stopped")
         manager = null
         delegate = null
     }

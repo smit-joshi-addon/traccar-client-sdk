@@ -53,6 +53,7 @@ class AlarmHeartbeatTrigger(
 
     private fun cancelScheduled() {
         alarmManager.cancel(pendingIntent())
+        Log.log("Heartbeat alarm cancelled")
     }
 
     private fun pendingIntent(): PendingIntent = PendingIntent.getBroadcast(
@@ -65,6 +66,7 @@ class AlarmHeartbeatTrigger(
 
 class HeartbeatReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        Log.log("Heartbeat alarm fired")
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {

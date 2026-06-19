@@ -88,7 +88,10 @@ class GeofenceDetector(
     }
 
     private fun unregister() {
-        pendingIntent?.let { client.removeGeofences(it) }
+        pendingIntent?.let {
+            client.removeGeofences(it)
+            Log.log("Geofence removed")
+        }
         pendingIntent = null
     }
 
@@ -99,6 +102,7 @@ class GeofenceDetector(
             return
         }
         if (event.geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT) {
+            Log.log("Geofence exit")
             scope.launch { signals.emit(Signal.StationaryExit) }
         }
     }
@@ -111,6 +115,7 @@ class GeofenceDetector(
 
 class GeofenceReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        Log.log("Geofence broadcast received")
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {

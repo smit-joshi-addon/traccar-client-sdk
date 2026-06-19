@@ -60,6 +60,7 @@ class RegionDetector(
         val newDelegate = object : NSObject(), CLLocationManagerDelegateProtocol {
             override fun locationManager(manager: CLLocationManager, didExitRegion: CLRegion) {
                 if (didExitRegion.identifier == REGION_ID) {
+                    Log.log("Region exit")
                     scope.launch { signals.emit(Signal.StationaryExit) }
                 }
             }
@@ -92,11 +93,13 @@ class RegionDetector(
     }
 
     private fun unregister() {
-        val current = manager ?: return
-        current.monitoredRegions.forEach { region ->
-            (region as? CLRegion)?.let { current.stopMonitoringForRegion(it) }
+        manager?.let { current ->
+            current.monitoredRegions.forEach { region ->
+                (region as? CLRegion)?.let { current.stopMonitoringForRegion(it) }
+            }
+            current.delegate = null
+            Log.log("Region monitoring removed")
         }
-        current.delegate = null
         manager = null
         delegate = null
     }

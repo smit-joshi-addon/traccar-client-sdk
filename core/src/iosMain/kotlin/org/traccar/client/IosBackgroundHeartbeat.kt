@@ -56,6 +56,7 @@ class IosBackgroundHeartbeat(
 
         private fun cancelScheduled() {
             BGTaskScheduler.sharedScheduler.cancelTaskRequestWithIdentifier(TASK_IDENTIFIER)
+            Log.log("Heartbeat task cancelled")
         }
 
         private fun handleTask(task: BGAppRefreshTask) {

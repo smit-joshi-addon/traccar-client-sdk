@@ -72,7 +72,10 @@ class ActivityRecognitionDetector(
     private fun ensureUnregistered() {
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
-        pendingIntent?.let { client.removeActivityTransitionUpdates(it) }
+        pendingIntent?.let {
+            client.removeActivityTransitionUpdates(it)
+            Log.log("Activity transitions removed")
+        }
         pendingIntent = null
     }
 
@@ -103,6 +106,7 @@ class ActivityRecognitionDetector(
 
     private fun onStillEnter() {
         stopTimeoutJob?.cancel()
+        Log.log("Stop detection: arming ${stopTimeoutSeconds}s timeout")
         stopTimeoutJob = scope.launch {
             delay(stopTimeoutSeconds.seconds)
             signals.emit(Signal.StationaryEnter)
@@ -110,6 +114,7 @@ class ActivityRecognitionDetector(
     }
 
     private fun onStillExit() {
+        if (stopTimeoutJob?.isActive == true) Log.log("Stop detection: cancelled")
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
         scope.launch { signals.emit(Signal.StationaryExit) }
@@ -118,6 +123,7 @@ class ActivityRecognitionDetector(
 
 class ActivityRecognitionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        Log.log("Activity recognition broadcast received")
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {

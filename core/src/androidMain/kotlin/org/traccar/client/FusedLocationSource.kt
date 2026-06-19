@@ -77,10 +77,14 @@ class FusedLocationSource(
             .build()
         client.requestLocationUpdates(request, newCallback, Looper.getMainLooper())
         callback = newCallback
+        Log.log("Location updates started")
     }
 
     private fun stopUpdates() {
-        callback?.let { client.removeLocationUpdates(it) }
+        callback?.let {
+            client.removeLocationUpdates(it)
+            Log.log("Location updates stopped")
+        }
         callback = null
     }
 

@@ -57,6 +57,7 @@ class MotionActivityDetector(
 
     private fun onStillEnter() {
         if (stopTimeoutJob?.isActive == true) return
+        Log.log("Stop detection: arming ${stopTimeoutSeconds}s timeout")
         stopTimeoutJob = scope.launch {
             delay(stopTimeoutSeconds.seconds)
             signals.emit(Signal.StationaryEnter)
@@ -64,6 +65,7 @@ class MotionActivityDetector(
     }
 
     private fun onStillExit() {
+        if (stopTimeoutJob?.isActive == true) Log.log("Stop detection: cancelled")
         stopTimeoutJob?.cancel()
         stopTimeoutJob = null
         scope.launch { signals.emit(Signal.StationaryExit) }

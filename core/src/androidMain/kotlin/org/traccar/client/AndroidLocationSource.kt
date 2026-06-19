@@ -70,10 +70,14 @@ class AndroidLocationSource(
             Looper.getMainLooper(),
         )
         listener = newListener
+        Log.log("Location updates started")
     }
 
     private fun stopUpdates() {
-        listener?.let { locationManager.removeUpdates(it) }
+        listener?.let {
+            locationManager.removeUpdates(it)
+            Log.log("Location updates stopped")
+        }
         listener = null
     }
 

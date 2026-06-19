@@ -88,6 +88,7 @@ class TrackerEngine internal constructor(
                 !network.isOnline.value -> {
                     Log.log("Offline, waiting for network")
                     network.isOnline.first { it }
+                    Log.log("Network restored")
                 }
                 uploader.upload(pending) -> {
                     queue.removeFirst()
