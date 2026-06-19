@@ -32,7 +32,12 @@ class Tracker internal constructor(
     }
 
     suspend fun requestPosition(): Boolean {
-        val raw = locationSource.fetchOnce() ?: return false
+        Log.log("Position requested")
+        val raw = locationSource.fetchOnce() ?: run {
+            Log.log("Position request: no fix")
+            return false
+        }
+        Log.log("Position fetched ${raw.latitude},${raw.longitude}")
         val processed = batteryProcessor.process(raw) ?: return false
         return uploader.upload(processed)
     }
