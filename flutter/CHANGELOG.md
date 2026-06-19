@@ -1,3 +1,9 @@
+## 0.0.18
+
+* Add `Config.preferPlatformProviders` — when `true`, the Android SDK uses `LocationManager` directly even when Google Play Services is available. Default `false` keeps the existing Fused-when-available behaviour.
+* Restore and round out diagnostic logging across components: receiver wake-ups (boot, activity recognition, geofence, heartbeat alarm), geofence and region exit events, location updates starting and stopping on every source, stop-detection timer arming and cancellation, network restored after an offline wait, plus matching teardown lines for activity transitions, geofences, heartbeats, and region monitoring. Activity transitions on Android are now logged with lowercase, human-readable names to match the iOS motion log.
+* `requestPosition` brackets its work with `Position requested` / `Position fetched` / `Position request: no fix`.
+
 ## 0.0.17
 
 * Fix `setConfig` / `Tracker.updateConfig` returning a tracker bound to the old config — every subsequent action (uploads, observers, `Tracker.config`) kept seeing the previous `serverUrl`/`deviceId`. Caused by Koin caching singleton instances on shared `Module` objects across `KoinApplication` instances; modules are now constructed per Koin app.
