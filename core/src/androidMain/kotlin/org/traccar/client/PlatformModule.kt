@@ -21,10 +21,12 @@ internal actual fun platformModule(): Module = module {
 
     single<LocationSource> {
         val context = get<Context>()
+        val config = get<Config>()
         val playServicesAvailable = GoogleApiAvailability.getInstance()
             .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
-        Log.log("Using ${if (playServicesAvailable) "Fused" else "Android"}LocationSource")
-        if (playServicesAvailable) {
+        val useFused = !config.preferPlatformProviders && playServicesAvailable
+        Log.log("Using ${if (useFused) "Fused" else "Android"}LocationSource")
+        if (useFused) {
             FusedLocationSource(get(), get(), get(), get())
         } else {
             AndroidLocationSource(get(), get(), get(), get())

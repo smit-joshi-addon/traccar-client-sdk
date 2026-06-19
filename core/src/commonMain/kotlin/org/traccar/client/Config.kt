@@ -9,6 +9,7 @@ data class Config(
     val location: LocationConfig = LocationConfig(),
     val wakeLock: Boolean = false,
     val buffer: Boolean = true,
+    val preferPlatformProviders: Boolean = false,
     val notification: NotificationConfig = NotificationConfig(),
 ) {
     constructor(serverUrl: String, deviceId: String) : this(serverUrl, deviceId, LocationConfig())
