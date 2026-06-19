@@ -1,3 +1,7 @@
+## 0.0.19
+
+* Wire `Config.preferPlatformProviders` through the Flutter plugin (0.0.18 added the field on the native SDK only). Dart `Config` now exposes the flag and both the Android and iOS plugin bridges parse it from the method-channel payload.
+
 ## 0.0.18
 
 * Add `Config.preferPlatformProviders` — when `true`, the Android SDK uses `LocationManager` directly even when Google Play Services is available. Default `false` keeps the existing Fused-when-available behaviour.

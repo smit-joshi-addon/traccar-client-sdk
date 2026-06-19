@@ -101,6 +101,7 @@ class TraccarClientSdkPlugin :
             ),
             wakeLock = args["wakeLock"] as Boolean,
             buffer = args["buffer"] as Boolean,
+            preferPlatformProviders = args["preferPlatformProviders"] as Boolean,
             notification = NotificationConfig(text = notification["text"] as String),
         )
     }

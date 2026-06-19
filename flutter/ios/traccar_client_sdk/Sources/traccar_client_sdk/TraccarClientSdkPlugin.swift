@@ -87,6 +87,7 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
       ),
       wakeLock: args["wakeLock"] as! Bool,
       buffer: args["buffer"] as! Bool,
+      preferPlatformProviders: args["preferPlatformProviders"] as! Bool,
       notification: NotificationConfig(text: notification["text"] as! String)
     )
   }

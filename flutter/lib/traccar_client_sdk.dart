@@ -52,6 +52,7 @@ class Config {
     this.location = const LocationConfig(),
     this.wakeLock = false,
     this.buffer = true,
+    this.preferPlatformProviders = false,
     this.notification = const NotificationConfig(),
   });
 
@@ -67,6 +68,11 @@ class Config {
   /// drop it on failure (real-time only).
   final bool buffer;
 
+  /// When true, the Android SDK uses the platform `LocationManager` directly
+  /// even when Google Play Services is available. Default `false` picks the
+  /// Fused Location Provider when Play Services is present. Ignored on iOS.
+  final bool preferPlatformProviders;
+
   final NotificationConfig notification;
 
   Map<String, Object?> _toMap() => {
@@ -75,6 +81,7 @@ class Config {
         'location': location._toMap(),
         'wakeLock': wakeLock,
         'buffer': buffer,
+        'preferPlatformProviders': preferPlatformProviders,
         'notification': notification._toMap(),
       };
 }
