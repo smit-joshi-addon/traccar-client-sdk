@@ -43,7 +43,8 @@ class NotificationConfig {
   Map<String, Object?> _toMap() => {'text': text};
 }
 
-/// Tracker configuration passed to [TraccarClientSdk.start].
+/// Tracker configuration. Pass to [TraccarClientSdk.setConfig] to install or
+/// update.
 class Config {
   const Config({
     required this.serverUrl,
@@ -91,22 +92,33 @@ class LogEntry {
 class TraccarClientSdk {
   static const MethodChannel _channel = MethodChannel('traccar_client_sdk');
 
-  /// Starts background location tracking with [config]. Throws a
-  /// [PlatformException] if required permissions were denied or another
-  /// startup error occurred.
-  Future<void> start(Config config) =>
-      _channel.invokeMethod<void>('start', config._toMap());
+  /// Initializes the SDK with [config] if it isn't already initialized.
+  /// Idempotent — subsequent calls return the existing tracker without
+  /// touching its config. Call once at app startup to seed defaults; use
+  /// [setConfig] to change settings on a running tracker.
+  Future<void> init(Config config) =>
+      _channel.invokeMethod<void>('init', config._toMap());
+
+  /// Replaces the running tracker's configuration with [config]. Requires
+  /// that [init] (or a prior session) has installed a tracker. Throws a
+  /// [PlatformException] otherwise.
+  Future<void> setConfig(Config config) =>
+      _channel.invokeMethod<void>('setConfig', config._toMap());
+
+  /// Starts background location tracking. Requires that the SDK has been
+  /// initialized (via [init] in this session, or via persisted config from
+  /// a previous one). Throws a [PlatformException] if required permissions
+  /// were denied or no config has ever been provided.
+  Future<void> start() => _channel.invokeMethod<void>('start');
 
   /// Stops tracking.
   Future<void> stop() => _channel.invokeMethod<void>('stop');
 
   /// Requests a single position fix and uploads it to the server. Returns
-  /// whether the upload succeeded. Works independently of [start] / [stop];
-  /// on Android the call must originate from a context allowed to receive
-  /// location (foreground activity or high-priority FCM message handler).
-  Future<bool> requestPosition(Config config) async {
-    final result =
-        await _channel.invokeMethod<bool>('requestPosition', config._toMap());
+  /// whether the upload succeeded. Works independently of [start] / [stop].
+  /// Requires that [setConfig] has been called.
+  Future<bool> requestPosition() async {
+    final result = await _channel.invokeMethod<bool>('requestPosition');
     return result ?? false;
   }
 

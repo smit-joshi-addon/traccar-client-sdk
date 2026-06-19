@@ -34,27 +34,35 @@ class TraccarClientSdkPlugin :
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
+            "init" -> scope.launchHandler(result) {
+                sharedTracker(parseConfig(call.arguments as Map<*, *>))
+                null
+            }
+            "setConfig" -> scope.launchHandler(result) {
+                sharedTracker()!!.updateConfig(parseConfig(call.arguments as Map<*, *>))
+                null
+            }
             "start" -> scope.launchHandler(result) {
-                sharedTracker().startTracking(context, parseConfig(call.arguments as Map<*, *>))
+                sharedTracker()!!.startTracking(context)
                 null
             }
             "stop" -> scope.launchHandler(result) {
-                sharedTracker().stop()
+                sharedTracker()?.stop()
                 null
             }
             "requestPosition" -> scope.launchHandler(result) {
-                sharedTracker().requestPosition(parseConfig(call.arguments as Map<*, *>))
+                sharedTracker()?.requestPosition() ?: false
             }
             "isTracking" -> scope.launchHandler(result) {
-                sharedTracker().isTracking.value
+                sharedTracker()?.state?.value?.enabled ?: false
             }
             "getLogs" -> scope.launchHandler(result) {
-                sharedTracker().getLogs().map {
+                sharedTracker()?.getLogs()?.map {
                     mapOf("time" to it.time, "message" to it.message)
-                }
+                } ?: emptyList<Map<String, Any>>()
             }
             "clearLogs" -> scope.launchHandler(result) {
-                sharedTracker().clearLogs()
+                sharedTracker()?.clearLogs()
                 null
             }
             else -> result.notImplemented()

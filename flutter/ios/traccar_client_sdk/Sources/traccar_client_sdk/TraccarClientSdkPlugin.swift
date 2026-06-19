@@ -11,41 +11,47 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
-    case "start":
+    case "init":
       let args = call.arguments as! [String: Any]
       let config = parseConfig(args)
       runHandler(result) {
-        let tracker = try await TrackerKt.sharedTracker()
-        try await tracker.start(config: config)
+        _ = try await TrackerKt.sharedTracker(config: config)
+        return nil
+      }
+    case "setConfig":
+      let args = call.arguments as! [String: Any]
+      let config = parseConfig(args)
+      runHandler(result) {
+        _ = try await TrackerKt.sharedTracker()!.updateConfig(newConfig: config)
+        return nil
+      }
+    case "start":
+      runHandler(result) {
+        try await TrackerKt.sharedTracker()!.start()
         return nil
       }
     case "stop":
       runHandler(result) {
-        let tracker = try await TrackerKt.sharedTracker()
-        try await tracker.stop()
+        try await TrackerKt.sharedTracker()?.stop()
         return nil
       }
     case "requestPosition":
-      let args = call.arguments as! [String: Any]
-      let config = parseConfig(args)
       runHandler(result) {
-        let tracker = try await TrackerKt.sharedTracker()
-        return try await tracker.requestPosition(config: config)
+        return try await TrackerKt.sharedTracker()?.requestPosition() ?? false
       }
     case "isTracking":
       runHandler(result) {
-        let tracker = try await TrackerKt.sharedTracker()
-        return tracker.isTracking.value
+        guard let tracker = try await TrackerKt.sharedTracker() else { return false }
+        return (tracker.state.value as? State)?.enabled ?? false
       }
     case "getLogs":
       runHandler(result) {
-        let tracker = try await TrackerKt.sharedTracker()
+        guard let tracker = try await TrackerKt.sharedTracker() else { return [] as [[String: Any]] }
         return try await tracker.getLogs().map { ["time": $0.time, "message": $0.message] as [String: Any] }
       }
     case "clearLogs":
       runHandler(result) {
-        let tracker = try await TrackerKt.sharedTracker()
-        try await tracker.clearLogs()
+        try await TrackerKt.sharedTracker()?.clearLogs()
         return nil
       }
     default:
