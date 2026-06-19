@@ -58,7 +58,8 @@ suspend fun sharedTracker(): Tracker? = sharedMutex.withLock {
     install(koin, persisted)
 }
 
-suspend fun initTracker(config: Config): Tracker = sharedMutex.withLock {
+suspend fun sharedTracker(config: Config): Tracker = sharedMutex.withLock {
+    sharedTrackerInstance?.let { return@withLock it }
     bootstrap(config)
 }
 

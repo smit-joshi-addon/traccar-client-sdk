@@ -1,19 +1,42 @@
 import SwiftUI
 import TraccarClientSDK
 
+private let defaultServerUrl = "https://demo.traccar.org/"
+private let defaultDeviceId = "123456"
+
 @main
 struct SampleApp: App {
+    @State private var tracker: Tracker?
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if let tracker = tracker {
+                ContentView(initialTracker: tracker)
+            } else {
+                ProgressView()
+                    .task {
+                        let config = Config(serverUrl: defaultServerUrl, deviceId: defaultDeviceId)
+                        tracker = try? await TrackerKt.sharedTracker(config: config)
+                    }
+            }
         }
     }
 }
 
 struct ContentView: View {
-    @State private var serverUrl = "https://demo.traccar.org/"
-    @State private var deviceId = "123456"
+    let initialTracker: Tracker
+
+    @State private var tracker: Tracker
+    @State private var serverUrl: String
+    @State private var deviceId: String
     @State private var isTracking = false
+
+    init(initialTracker: Tracker) {
+        self.initialTracker = initialTracker
+        self._tracker = State(initialValue: initialTracker)
+        self._serverUrl = State(initialValue: initialTracker.config.serverUrl)
+        self._deviceId = State(initialValue: initialTracker.config.deviceId)
+    }
 
     var body: some View {
         Form {
@@ -25,14 +48,18 @@ struct ContentView: View {
                     .textInputAutocapitalization(.never)
             }
             Section {
+                Button("Apply config") {
+                    Task {
+                        tracker = try await tracker.updateConfig(newConfig: Config(serverUrl: serverUrl, deviceId: deviceId))
+                    }
+                }
                 Button(isTracking ? "Stop" : "Start") {
                     Task {
-                        let tracker = try await TrackerKt.sharedTracker()
                         if isTracking {
                             try await tracker.stop()
                             isTracking = false
                         } else {
-                            try await tracker.start(config: Config(serverUrl: serverUrl, deviceId: deviceId))
+                            try await tracker.start()
                             isTracking = true
                         }
                     }
