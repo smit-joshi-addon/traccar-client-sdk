@@ -1,3 +1,7 @@
+## 0.0.21
+
+* Fix the iOS auto-init shim failing to compile against the SDK. `register()` is now called on the `IosBackgroundHeartbeat` companion (it was sent to the class, which only exposes `companion`), and the obsolete `Tracker.resume()` call — removed in the tracker-construction restructure but left in the shim — is dropped. Reconstructing the shared tracker on launch already re-attaches OS signals and resumes from persisted state.
+
 ## 0.0.20
 
 * Wire `LocationConfig.heartbeatIntervalSeconds` through the Flutter plugin (the field has existed on the native SDK since 0.0.15 but was never exposed). Dart `LocationConfig` now accepts the value (default `0`) and both the Android and iOS plugin bridges parse it from the method-channel payload. Fixes the iOS build break where Kotlin/Native exposes the field as a required initializer argument with no default.

@@ -13,11 +13,9 @@
         object:nil
         queue:[NSOperationQueue mainQueue]
         usingBlock:^(NSNotification *note) {
-            [[TCSDKIosBackgroundHeartbeat shared] register];
+            [[TCSDKIosBackgroundHeartbeat companion] register];
             dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-                [TCSDKTrackerKt sharedTrackerWithCompletionHandler:^(TCSDKTracker *tracker, NSError *error) {
-                    [tracker resumeWithCompletionHandler:^(NSError *resumeError) {}];
-                }];
+                [TCSDKTrackerKt sharedTrackerWithCompletionHandler:^(TCSDKTracker *tracker, NSError *error) {}];
             });
         }];
 }
