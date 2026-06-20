@@ -83,7 +83,8 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
         angleDegrees: Int32(location["angleDegrees"] as! Int),
         stopDetection: location["stopDetection"] as! Bool,
         stopTimeoutSeconds: Int32(location["stopTimeoutSeconds"] as! Int),
-        stationaryRadiusMeters: Int32(location["stationaryRadiusMeters"] as! Int)
+        stationaryRadiusMeters: Int32(location["stationaryRadiusMeters"] as! Int),
+        heartbeatIntervalSeconds: Int32(location["heartbeatIntervalSeconds"] as! Int)
       ),
       wakeLock: args["wakeLock"] as! Bool,
       buffer: args["buffer"] as! Bool,

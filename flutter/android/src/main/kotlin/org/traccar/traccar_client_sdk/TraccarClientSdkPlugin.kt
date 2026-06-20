@@ -98,6 +98,7 @@ class TraccarClientSdkPlugin :
                 stopDetection = location["stopDetection"] as Boolean,
                 stopTimeoutSeconds = (location["stopTimeoutSeconds"] as Number).toInt(),
                 stationaryRadiusMeters = (location["stationaryRadiusMeters"] as Number).toInt(),
+                heartbeatIntervalSeconds = (location["heartbeatIntervalSeconds"] as Number).toInt(),
             ),
             wakeLock = args["wakeLock"] as Boolean,
             buffer = args["buffer"] as Boolean,

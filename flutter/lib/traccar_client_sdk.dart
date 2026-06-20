@@ -13,6 +13,7 @@ class LocationConfig {
     this.stopDetection = true,
     this.stopTimeoutSeconds = 60,
     this.stationaryRadiusMeters = 100,
+    this.heartbeatIntervalSeconds = 0,
   });
 
   final Accuracy accuracy;
@@ -22,6 +23,7 @@ class LocationConfig {
   final bool stopDetection;
   final int stopTimeoutSeconds;
   final int stationaryRadiusMeters;
+  final int heartbeatIntervalSeconds;
 
   Map<String, Object?> _toMap() => {
         'accuracy': accuracy.name.toUpperCase(),
@@ -31,6 +33,7 @@ class LocationConfig {
         'stopDetection': stopDetection,
         'stopTimeoutSeconds': stopTimeoutSeconds,
         'stationaryRadiusMeters': stationaryRadiusMeters,
+        'heartbeatIntervalSeconds': heartbeatIntervalSeconds,
       };
 }
 

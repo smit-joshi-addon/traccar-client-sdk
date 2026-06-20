@@ -1,3 +1,7 @@
+## 0.0.20
+
+* Wire `LocationConfig.heartbeatIntervalSeconds` through the Flutter plugin (the field has existed on the native SDK since 0.0.15 but was never exposed). Dart `LocationConfig` now accepts the value (default `0`) and both the Android and iOS plugin bridges parse it from the method-channel payload. Fixes the iOS build break where Kotlin/Native exposes the field as a required initializer argument with no default.
+
 ## 0.0.19
 
 * Wire `Config.preferPlatformProviders` through the Flutter plugin (0.0.18 added the field on the native SDK only). Dart `Config` now exposes the flag and both the Android and iOS plugin bridges parse it from the method-channel payload.
