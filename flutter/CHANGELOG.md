@@ -1,3 +1,10 @@
+## 0.0.24
+
+* Android foreground service now returns `START_STICKY`, so after the OS kills the process under memory pressure it is recreated and re-foregrounded, resuming tracking from persisted state. Previously `START_NOT_STICKY` left tracking dead until an external trigger (boot, activity-recognition, geofence) fired. The failure path — initial `startForeground` blocked — still returns `START_NOT_STICKY` and calls `stopSelf()` to avoid restarting straight back into the same blocked state.
+* Harden Android foreground service start. `startForegroundService()` is wrapped to catch the Android 12+ background-start ban (`ForegroundServiceStartNotAllowedException`), and `startForeground()` is guarded so a denial tears the service down with `stopSelf()` instead of risking the uncatchable 5-second "did not call startForeground in time" crash.
+* Android heartbeat alarm schedules against the monotonic clock (`ELAPSED_REALTIME_WAKEUP` + `SystemClock.elapsedRealtime()`) instead of `RTC_WAKEUP`, so the interval survives wall-clock changes, and uses an immutable `PendingIntent`.
+* Fix the iOS network monitor being deallocated after construction. `nw_path_monitor` is now retained in a property; previously its only reference was a local, so once it was collected the monitor stopped delivering updates and `isOnline` could stick at `false`, stalling all uploads behind the sync loop's offline wait.
+
 ## 0.0.23
 
 * `requestPosition` accepts an optional `alarm` string that becomes the Traccar protocol `alarm` field on the upload (e.g. `"sos"`). One-off remains direct — no buffer/retry — so a failed SOS is not persisted.
