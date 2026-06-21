@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import androidx.core.app.AlarmManagerCompat
 import androidx.core.content.getSystemService
 import kotlinx.coroutines.CoroutineScope
@@ -41,10 +42,10 @@ class AlarmHeartbeatTrigger(
 
     private fun scheduleNext() {
         if (intervalSeconds <= 0) return
-        val triggerAt = nowMillis() + intervalSeconds * 1000L
+        val triggerAt = SystemClock.elapsedRealtime() + intervalSeconds * 1000L
         AlarmManagerCompat.setAndAllowWhileIdle(
             alarmManager,
-            AlarmManager.RTC_WAKEUP,
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
             triggerAt,
             pendingIntent(),
         )
@@ -60,7 +61,7 @@ class AlarmHeartbeatTrigger(
         appContext,
         0,
         Intent(appContext, HeartbeatReceiver::class.java),
-        PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 }
 

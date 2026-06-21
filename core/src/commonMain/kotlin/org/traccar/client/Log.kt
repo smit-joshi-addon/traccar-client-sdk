@@ -1,13 +1,10 @@
 package org.traccar.client
 
 import kotlin.concurrent.Volatile
-import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-
-internal fun nowMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
 internal object Log {
 

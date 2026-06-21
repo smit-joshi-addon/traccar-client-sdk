@@ -1,6 +1,7 @@
 package org.traccar.client
 
 import app.cash.sqldelight.db.SqlDriver
+import kotlin.time.Clock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -11,7 +12,7 @@ class LogStore(driver: SqlDriver) {
     private val queries = Database(driver).logEntryQueries
 
     suspend fun insert(message: String) = withContext(Dispatchers.IO) {
-        queries.insert(time = nowMillis(), message = message)
+        queries.insert(time = Clock.System.now().toEpochMilliseconds(), message = message)
     }
 
     suspend fun all(): List<LogEntry> = withContext(Dispatchers.IO) {
