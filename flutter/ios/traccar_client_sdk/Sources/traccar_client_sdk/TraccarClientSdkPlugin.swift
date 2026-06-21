@@ -36,8 +36,9 @@ public class TraccarClientSdkPlugin: NSObject, FlutterPlugin {
         return nil
       }
     case "requestPosition":
+      let alarm = (call.arguments as? [String: Any])?["alarm"] as? String
       runHandler(result) {
-        return try await TrackerKt.sharedTracker()?.requestPosition() ?? false
+        return try await TrackerKt.sharedTracker()?.requestPosition(alarm: alarm) ?? false
       }
     case "isTracking":
       runHandler(result) {

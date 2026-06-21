@@ -127,8 +127,15 @@ class TraccarClientSdk {
   /// Requests a single position fix and uploads it to the server. Returns
   /// whether the upload succeeded. Works independently of [start] / [stop].
   /// Requires that [setConfig] has been called.
-  Future<bool> requestPosition() async {
-    final result = await _channel.invokeMethod<bool>('requestPosition');
+  ///
+  /// Pass [alarm] (e.g. `"sos"`) to tag the upload with the Traccar `alarm`
+  /// protocol field. The one-off path does not buffer — a failed upload is
+  /// not retried and the alarm is lost.
+  Future<bool> requestPosition({String? alarm}) async {
+    final result = await _channel.invokeMethod<bool>(
+      'requestPosition',
+      {'alarm': alarm},
+    );
     return result ?? false;
   }
 

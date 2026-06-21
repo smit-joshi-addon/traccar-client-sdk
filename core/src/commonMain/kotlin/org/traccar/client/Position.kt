@@ -13,4 +13,5 @@ data class Position(
     val bearing: Double? = null,
     val battery: Int? = null,
     val charging: Boolean? = null,
+    val alarm: String? = null,
 )

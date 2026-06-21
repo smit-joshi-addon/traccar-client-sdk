@@ -27,6 +27,7 @@ class HttpUploader(
                 position.bearing?.let { append("bearing", it.toString()) }
                 position.battery?.let { append("batt", it.toString()) }
                 position.charging?.let { append("charge", it.toString()) }
+                position.alarm?.let { append("alarm", it) }
             },
         )
         Log.log("Upload response ${response.status.value}")

@@ -31,14 +31,14 @@ class Tracker internal constructor(
         stateStore.update { it.copy(enabled = false, paused = false) }
     }
 
-    suspend fun requestPosition(): Boolean {
-        Log.log("Position requested")
+    suspend fun requestPosition(alarm: String? = null): Boolean {
+        Log.log("Position requested${alarm?.let { " alarm=$it" } ?: ""}")
         val raw = locationSource.fetchOnce() ?: run {
             Log.log("Position request: no fix")
             return false
         }
         Log.log("Position fetched ${raw.latitude},${raw.longitude}")
-        val processed = batteryProcessor.process(raw) ?: return false
+        val processed = batteryProcessor.process(raw)?.copy(alarm = alarm) ?: return false
         return uploader.upload(processed)
     }
 

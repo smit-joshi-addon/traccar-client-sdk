@@ -51,7 +51,8 @@ class TraccarClientSdkPlugin :
                 null
             }
             "requestPosition" -> scope.launchHandler(result) {
-                sharedTracker()?.requestPosition() ?: false
+                val alarm = (call.arguments as? Map<*, *>)?.get("alarm") as? String
+                sharedTracker()?.requestPosition(alarm) ?: false
             }
             "isTracking" -> scope.launchHandler(result) {
                 sharedTracker()?.state?.value?.enabled ?: false
