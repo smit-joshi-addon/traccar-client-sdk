@@ -42,7 +42,7 @@ class ActivityRecognitionDetector(
         scope.launch {
             ActivityRecognitionReceiver.events.collect { handleResult(it) }
         }
-        scope.observeState(state, { it.enabled && !it.paused }, inactive = false) { active ->
+        scope.observeState(state, { it.enabled }, inactive = false) { active ->
             if (active) ensureRegistered() else ensureUnregistered()
         }
     }

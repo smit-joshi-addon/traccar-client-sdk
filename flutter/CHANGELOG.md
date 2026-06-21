@@ -1,3 +1,7 @@
+## 0.0.22
+
+* Keep stop-detection signals subscribed while parked so movement out of stationary mode is observed as soon as the OS reports a non-still activity transition, rather than waiting for the user to cross the `stationaryRadiusMeters` geofence/region boundary. `ActivityRecognitionDetector` (Android) and `MotionActivityDetector` (iOS) now gate only on `state.enabled`, not on `enabled && !paused`. The geofence/region still provides the kill-resilient exit signal.
+
 ## 0.0.21
 
 * Fix the iOS auto-init shim failing to compile against the SDK. `register()` is now called on the `IosBackgroundHeartbeat` companion (it was sent to the class, which only exposes `companion`), and the obsolete `Tracker.resume()` call — removed in the tracker-construction restructure but left in the shim — is dropped. Reconstructing the shared tracker on launch already re-attaches OS signals and resumes from persisted state.
