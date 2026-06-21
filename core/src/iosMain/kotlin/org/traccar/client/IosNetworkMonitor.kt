@@ -16,8 +16,9 @@ class IosNetworkMonitor : NetworkMonitor {
 
     override val isOnline = MutableStateFlow(false)
 
+    private val monitor = nw_path_monitor_create()
+
     init {
-        val monitor = nw_path_monitor_create()
         nw_path_monitor_set_update_handler(monitor) { path ->
             val online = path != null && nw_path_get_status(path) == nw_path_status_satisfied
             if (isOnline.value != online) Log.log("Network ${if (online) "online" else "offline"}")
