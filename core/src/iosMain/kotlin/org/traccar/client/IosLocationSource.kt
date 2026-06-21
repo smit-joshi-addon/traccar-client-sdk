@@ -41,7 +41,7 @@ class IosLocationSource(
     private var manager: CLLocationManager? = null
     private var delegate: CLLocationManagerDelegateProtocol? = null
     private var lastLocation: CLLocation? = null
-    private var pendingLocation: CompletableDeferred<CLLocation>? = null
+    private var pendingLocation: CompletableDeferred<CLLocation?>? = null
 
     init {
         mainScope.observeState(state, State::locationMode, inactive = LocationMode.Off) { mode ->
@@ -67,7 +67,9 @@ class IosLocationSource(
                 }
             }
 
-            override fun locationManager(manager: CLLocationManager, didFailWithError: NSError) {}
+            override fun locationManager(manager: CLLocationManager, didFailWithError: NSError) {
+                pendingLocation?.complete(null)
+            }
 
             override fun locationManagerDidChangeAuthorization(manager: CLLocationManager) {
                 if (authStatus.isCompleted) return
@@ -120,7 +122,7 @@ class IosLocationSource(
     private suspend fun ensureStopped(awaitFinalFix: Boolean) {
         val current = manager ?: return
         if (awaitFinalFix) {
-            val deferred = CompletableDeferred<CLLocation>()
+            val deferred = CompletableDeferred<CLLocation?>()
             pendingLocation = deferred
             current.requestLocation()
             val finalFix = try {
@@ -140,19 +142,42 @@ class IosLocationSource(
 
     @OptIn(ExperimentalForeignApi::class)
     override suspend fun fetchOnce(): Position? = withContext(Dispatchers.Main) {
-        val active = manager
-        if (active != null) {
-            val deferred = CompletableDeferred<CLLocation>()
-            pendingLocation = deferred
-            active.requestLocation()
-            val fix = try {
-                withTimeoutOrNull(10.seconds) { deferred.await() }
-            } finally {
-                pendingLocation = null
+        manager?.let { return@withContext fetchOnce(it) }
+
+        val newDelegate = object : NSObject(), CLLocationManagerDelegateProtocol {
+            override fun locationManager(manager: CLLocationManager, didUpdateLocations: List<*>) {
+                didUpdateLocations.forEach { value ->
+                    pendingLocation?.complete(value as CLLocation)
+                }
             }
-            return@withContext fix?.toPosition()
+
+            override fun locationManager(manager: CLLocationManager, didFailWithError: NSError) {
+                pendingLocation?.complete(null)
+            }
         }
-        null
+        val transient = CLLocationManager().apply {
+            delegate = newDelegate
+            desiredAccuracy = locationConfig.accuracy.toIosAccuracy()
+            allowsBackgroundLocationUpdates = true
+        }
+        try {
+            fetchOnce(transient)
+        } finally {
+            transient.delegate = null
+        }
+    }
+
+    @OptIn(ExperimentalForeignApi::class)
+    private suspend fun fetchOnce(active: CLLocationManager): Position? {
+        val deferred = CompletableDeferred<CLLocation?>()
+        pendingLocation = deferred
+        active.requestLocation()
+        val fresh = try {
+            withTimeoutOrNull(LOCATION_FETCH_TIMEOUT) { deferred.await() }
+        } finally {
+            pendingLocation = null
+        }
+        return (fresh ?: active.location)?.toPosition()
     }
 }
 

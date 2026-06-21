@@ -14,6 +14,7 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 
 @SuppressLint("MissingPermission")
 class AndroidLocationSource(
@@ -56,7 +57,11 @@ class AndroidLocationSource(
         stopUpdates()
     }
 
-    override suspend fun fetchOnce(): Position? = awaitCurrentLocation()?.toPosition()
+    override suspend fun fetchOnce(): Position? {
+        val fresh = withTimeoutOrNull(LOCATION_FETCH_TIMEOUT) { awaitCurrentLocation() }
+        return (fresh ?: locationManager.getLastKnownLocation(locationConfig.accuracy.toAndroidProvider()))
+            ?.toPosition()
+    }
 
     private fun startUpdates() {
         val newListener = LocationListener { location ->

@@ -1,5 +1,7 @@
 package org.traccar.client
 
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -10,6 +12,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+
+internal val LOCATION_FETCH_TIMEOUT: Duration = 30.seconds
 
 interface LocationSource {
     val positions: Flow<Position>

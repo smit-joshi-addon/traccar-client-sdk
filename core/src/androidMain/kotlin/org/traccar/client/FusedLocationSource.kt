@@ -60,7 +60,8 @@ class FusedLocationSource(
         stopUpdates()
     }
 
-    override suspend fun fetchOnce(): Position? = awaitCurrentLocation()?.toPosition()
+    override suspend fun fetchOnce(): Position? =
+        (awaitCurrentLocation() ?: awaitLastLocation())?.toPosition()
 
     private fun startUpdates(locationConfig: LocationConfig) {
         val newCallback = object : LocationCallback() {
@@ -94,6 +95,7 @@ class FusedLocationSource(
         currentLocationToken = token
         val request = CurrentLocationRequest.Builder()
             .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+            .setDurationMillis(LOCATION_FETCH_TIMEOUT.inWholeMilliseconds)
             .build()
         return try {
             suspendCancellableCoroutine { continuation ->
@@ -109,6 +111,12 @@ class FusedLocationSource(
         } finally {
             if (currentLocationToken === token) currentLocationToken = null
         }
+    }
+
+    private suspend fun awaitLastLocation(): Location? = suspendCancellableCoroutine { continuation ->
+        client.lastLocation
+            .addOnSuccessListener { if (continuation.isActive) continuation.resume(it) }
+            .addOnFailureListener { if (continuation.isActive) continuation.resume(null) }
     }
 
     private fun Location.toPosition(): Position = Position(
