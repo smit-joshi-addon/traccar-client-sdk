@@ -72,7 +72,7 @@ class TrackerService : Service() {
         serviceScope.launch {
             sharedTracker()?.let { startInForeground(it.config.notification) }
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onDestroy() {
