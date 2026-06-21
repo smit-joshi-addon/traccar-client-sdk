@@ -1,3 +1,9 @@
+## 0.0.23
+
+* `requestPosition` accepts an optional `alarm` string that becomes the Traccar protocol `alarm` field on the upload (e.g. `"sos"`). One-off remains direct — no buffer/retry — so a failed SOS is not persisted.
+* `fetchOnce` is now resilient. All three location sources wait up to 30s for a fresh fix and fall back to the platform's last-known cache: `getLastLocation` on Fused, `getLastKnownLocation(provider)` on `LocationManager`, `manager.location` on iOS. Single timeout constant lives in `commonMain`.
+* Fix iOS `fetchOnce` returning null instantly when the tracker was not started. It now builds a transient `CLLocationManager` on demand so the one-off works independently of `start`/`stop` (matching Android, where the platform single-fix APIs never required a running manager). `didFailWithError` completes the pending fix with null, so denial/error fails fast instead of waiting the full 30s.
+
 ## 0.0.22
 
 * Keep stop-detection signals subscribed while parked so movement out of stationary mode is observed as soon as the OS reports a non-still activity transition, rather than waiting for the user to cross the `stationaryRadiusMeters` geofence/region boundary. `ActivityRecognitionDetector` (Android) and `MotionActivityDetector` (iOS) now gate only on `state.enabled`, not on `enabled && !paused`. The geofence/region still provides the kill-resilient exit signal.
