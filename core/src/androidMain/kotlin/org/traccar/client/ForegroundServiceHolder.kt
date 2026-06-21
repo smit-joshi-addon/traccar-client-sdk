@@ -38,10 +38,14 @@ class ForegroundServiceHolder(
 
     private fun start() {
         val intent = Intent(appContext, TrackerService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            appContext.startForegroundService(intent)
-        } else {
-            appContext.startService(intent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                appContext.startForegroundService(intent)
+            } else {
+                appContext.startService(intent)
+            }
+        } catch (e: IllegalStateException) {
+            Log.log("Foreground service start blocked: $e")
         }
     }
 
@@ -60,7 +64,10 @@ class TrackerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startInForeground(NotificationConfig())
+        if (!startInForeground(NotificationConfig())) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
         serviceScope.launch {
             sharedTracker()?.let { startInForeground(it.config.notification) }
@@ -76,12 +83,21 @@ class TrackerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun startInForeground(settings: NotificationConfig) {
+    private fun startInForeground(settings: NotificationConfig): Boolean {
         val notification = buildNotification(settings)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            true
+        } catch (e: IllegalStateException) {
+            Log.log("Foreground start not allowed: $e")
+            false
+        } catch (e: SecurityException) {
+            Log.log("Foreground start denied: $e")
+            false
         }
     }
 
