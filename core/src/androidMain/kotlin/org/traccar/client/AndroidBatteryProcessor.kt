@@ -49,13 +49,12 @@ class AndroidBatteryProcessor(private val context: Context) : PositionProcessor 
     }
 
     private fun getChargingStatus(): Boolean {
-        // Try BatteryManager first
-        val isCharging = batteryManager?.isCharging
-        if (isCharging != null) {
-            return isCharging
+        // 1. Try checking BatteryManager first (if it says true, we are charging)
+        if (batteryManager?.isCharging == true) {
+            return true
         }
 
-        // Fallback to sticky intent
+        // 2. Query dynamic sticky intent as a robust fallback/override (handles emulators and custom ROMs)
         return try {
             val batteryIntent = context.applicationContext.registerReceiver(
                 null,
@@ -64,6 +63,7 @@ class AndroidBatteryProcessor(private val context: Context) : PositionProcessor 
             batteryIntent?.let { intent ->
                 val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
                 val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
+                
                 status == BatteryManager.BATTERY_STATUS_CHARGING ||
                         status == BatteryManager.BATTERY_STATUS_FULL ||
                         plugged == BatteryManager.BATTERY_PLUGGED_AC ||
