@@ -57,6 +57,7 @@ class Config {
     this.buffer = true,
     this.preferPlatformProviders = false,
     this.notification = const NotificationConfig(),
+    this.headers = const {},
   });
 
   final String serverUrl;
@@ -78,6 +79,9 @@ class Config {
 
   final NotificationConfig notification;
 
+  /// Custom headers to send with the HTTP request.
+  final Map<String, String> headers;
+
   Map<String, Object?> _toMap() => {
         'serverUrl': serverUrl,
         'deviceId': deviceId,
@@ -86,6 +90,7 @@ class Config {
         'buffer': buffer,
         'preferPlatformProviders': preferPlatformProviders,
         'notification': notification._toMap(),
+        'headers': headers,
       };
 }
 

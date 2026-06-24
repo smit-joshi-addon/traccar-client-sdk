@@ -2,6 +2,7 @@ package org.traccar.client
 
 import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.submitForm
+import io.ktor.client.request.header
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.Parameters
 import io.ktor.http.isSuccess
@@ -29,7 +30,11 @@ class HttpUploader(
                 position.charging?.let { append("charge", it.toString()) }
                 position.alarm?.let { append("alarm", it) }
             },
-        )
+        ) {
+            config.headers.forEach { (key, value) ->
+                header(key, value)
+            }
+        }
         Log.log("Upload response ${response.status.value}")
         response.status.isSuccess()
     } catch (e: CancellationException) {
