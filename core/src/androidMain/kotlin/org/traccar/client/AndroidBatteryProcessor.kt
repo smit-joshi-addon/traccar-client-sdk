@@ -12,66 +12,89 @@ class AndroidBatteryProcessor(private val context: Context) : PositionProcessor 
     }
 
     override suspend fun process(position: Position): Position {
-        val level = position.battery ?: getBatteryLevel()
-        val charging = position.charging ?: getChargingStatus()
+        var level = position.battery
+        var charging = position.charging
+        var health = position.batteryHealth
+        var voltage = position.batteryVoltage
+        var temp = position.batteryTemperature
 
-        return position.copy(
-            battery = level,
-            charging = charging,
-        )
-    }
-
-    private fun getBatteryLevel(): Int? {
-        // Try BatteryManager first
-        val capacity = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-        if (capacity != null && capacity in 0..100) {
-            return capacity
-        }
-
-        // Fallback to sticky intent
-        return try {
-            val batteryIntent = context.applicationContext.registerReceiver(
-                null,
-                IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-            )
-            batteryIntent?.let { intent ->
-                val rawLevel = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-                if (rawLevel >= 0 && scale > 0) {
-                    (rawLevel * 100) / scale
-                } else {
-                    null
-                }
+        // 1. Try checking BatteryManager properties first (if not already set)
+        if (level == null) {
+            val capacity = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            if (capacity != null && capacity in 0..100) {
+                level = capacity
             }
-        } catch (e: Exception) {
-            null
         }
-    }
-
-    private fun getChargingStatus(): Boolean {
-        // 1. Try checking BatteryManager first (if it says true, we are charging)
-        if (batteryManager?.isCharging == true) {
-            return true
+        if (charging == null && batteryManager?.isCharging == true) {
+            charging = true
         }
 
-        // 2. Query dynamic sticky intent as a robust fallback/override (handles emulators and custom ROMs)
-        return try {
+        // 2. Query dynamic sticky intent for health, voltage, temp and level/charging fallbacks
+        try {
             val batteryIntent = context.applicationContext.registerReceiver(
                 null,
                 IntentFilter(Intent.ACTION_BATTERY_CHANGED)
             )
             batteryIntent?.let { intent ->
+                if (level == null) {
+                    val rawLevel = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                    if (rawLevel >= 0 && scale > 0) {
+                        level = (rawLevel * 100) / scale
+                    }
+                }
+
                 val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
                 val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
-                
-                status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                val isPluggedOrCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                         status == BatteryManager.BATTERY_STATUS_FULL ||
                         plugged == BatteryManager.BATTERY_PLUGGED_AC ||
                         plugged == BatteryManager.BATTERY_PLUGGED_USB ||
                         plugged == BatteryManager.BATTERY_PLUGGED_WIRELESS
-            } ?: false
+
+                if (charging == null) {
+                    charging = isPluggedOrCharging
+                } else if (charging == false) {
+                    charging = isPluggedOrCharging
+                }
+
+                if (health == null) {
+                    val rawHealth = intent.getIntExtra(BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_UNKNOWN)
+                    health = when (rawHealth) {
+                        BatteryManager.BATTERY_HEALTH_GOOD -> "good"
+                        BatteryManager.BATTERY_HEALTH_OVERHEAT -> "overheat"
+                        BatteryManager.BATTERY_HEALTH_DEAD -> "dead"
+                        BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> "over_voltage"
+                        BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE -> "failure"
+                        BatteryManager.BATTERY_HEALTH_COLD -> "cold"
+                        else -> "unknown"
+                    }
+                }
+
+                if (voltage == null) {
+                    val rawVoltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
+                    if (rawVoltage > 0) {
+                        voltage = rawVoltage
+                    }
+                }
+
+                if (temp == null) {
+                    val rawTemp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -999)
+                    if (rawTemp > -999) {
+                        temp = rawTemp / 10.0
+                    }
+                }
+            }
         } catch (e: Exception) {
-            false
+            // Ignore
         }
+
+        return position.copy(
+            battery = level,
+            charging = charging,
+            batteryHealth = health,
+            batteryVoltage = voltage,
+            batteryTemperature = temp,
+        )
     }
 }

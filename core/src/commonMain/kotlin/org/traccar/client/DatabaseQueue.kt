@@ -26,6 +26,9 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
                     bearing = position.bearing,
                     battery = position.battery?.toLong(),
                     charging = position.charging?.let { if (it) 1L else 0L },
+                    batteryHealth = position.batteryHealth,
+                    batteryVoltage = position.batteryVoltage?.toLong(),
+                    batteryTemperature = position.batteryTemperature,
                 )
             }
         }
@@ -45,6 +48,9 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
                     bearing = row.bearing,
                     battery = row.battery?.toInt(),
                     charging = row.charging?.let { it != 0L },
+                    batteryHealth = row.batteryHealth,
+                    batteryVoltage = row.batteryVoltage?.toInt(),
+                    batteryTemperature = row.batteryTemperature,
                 )
             }
         }
@@ -72,6 +78,9 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
                     bearing = row.bearing,
                     battery = row.battery?.toInt(),
                     charging = row.charging?.let { it != 0L },
+                    batteryHealth = row.batteryHealth,
+                    batteryVoltage = row.batteryVoltage?.toInt(),
+                    batteryTemperature = row.batteryTemperature,
                 )
             }
         }

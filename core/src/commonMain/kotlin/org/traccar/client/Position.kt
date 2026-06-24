@@ -15,4 +15,7 @@ data class Position(
     val battery: Int? = null,
     val charging: Boolean? = null,
     val alarm: String? = null,
+    val batteryHealth: String? = null,
+    val batteryVoltage: Int? = null,
+    val batteryTemperature: Double? = null,
 )

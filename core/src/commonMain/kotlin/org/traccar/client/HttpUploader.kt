@@ -40,6 +40,9 @@ class HttpUploader(
                         position.battery?.let { put("batt", it) }
                         position.charging?.let { put("charge", it) }
                         position.alarm?.let { put("alarm", it) }
+                        position.batteryHealth?.let { put("battery_health", it) }
+                        position.batteryVoltage?.let { put("battery_voltage", it) }
+                        position.batteryTemperature?.let { put("battery_temp", it) }
                         config.attributes.forEach { (key, value) ->
                             put(key, value)
                         }
@@ -70,6 +73,9 @@ class HttpUploader(
                     position.battery?.let { append("batt", it.toString()) }
                     position.charging?.let { append("charge", it.toString()) }
                     position.alarm?.let { append("alarm", it) }
+                    position.batteryHealth?.let { append("battery_health", it) }
+                    position.batteryVoltage?.let { append("battery_voltage", it.toString()) }
+                    position.batteryTemperature?.let { append("battery_temp", it.toString()) }
                     config.attributes.forEach { (key, value) ->
                         append(key, value)
                     }
