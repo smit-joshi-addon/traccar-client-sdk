@@ -106,6 +106,9 @@ class TraccarClientSdkPlugin :
             preferPlatformProviders = args["preferPlatformProviders"] as Boolean,
             notification = NotificationConfig(text = notification["text"] as String),
             headers = (args["headers"] as? Map<*, *>)?.map { (k, v) -> k.toString() to v.toString() }?.toMap() ?: emptyMap(),
+            imei = args["imei"] as? String,
+            attributes = (args["attributes"] as? Map<*, *>)?.map { (k, v) -> k.toString() to v.toString() }?.toMap() ?: emptyMap(),
+            uploadJson = args["uploadJson"] as? Boolean ?: false,
         )
     }
 }

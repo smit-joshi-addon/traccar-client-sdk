@@ -35,6 +35,7 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
         mutex.withLock {
             queries.peek().executeAsOneOrNull()?.let { row ->
                 Position(
+                    id = row.id,
                     latitude = row.latitude,
                     longitude = row.longitude,
                     accuracy = row.accuracy,
@@ -53,6 +54,34 @@ class DatabaseQueue(driver: SqlDriver) : PositionQueue {
         withContext(Dispatchers.IO) {
             mutex.withLock {
                 queries.removeFirst()
+            }
+        }
+    }
+
+    override suspend fun peek(limit: Int): List<Position> = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            queries.peekBatch(limit.toLong()).executeAsList().map { row ->
+                Position(
+                    id = row.id,
+                    latitude = row.latitude,
+                    longitude = row.longitude,
+                    accuracy = row.accuracy,
+                    time = row.time,
+                    altitude = row.altitude,
+                    speed = row.speed,
+                    bearing = row.bearing,
+                    battery = row.battery?.toInt(),
+                    charging = row.charging?.let { it != 0L },
+                )
+            }
+        }
+    }
+
+    override suspend fun remove(maxId: Long) {
+        if (maxId <= 0) return
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                queries.removeBatch(maxId)
             }
         }
     }

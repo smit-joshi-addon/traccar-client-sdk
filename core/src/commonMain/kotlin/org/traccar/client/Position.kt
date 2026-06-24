@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Position(
+    val id: Long? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
     val accuracy: Double? = null,
